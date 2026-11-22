@@ -1,0 +1,9 @@
+[
+  {"id": "toggle-view", "phrases": ["switch view", "toggle view", "session view", "arrangement view", "switch between session and arrangement"], "keys": "tab", "description": "Toggle Session / Arrangement view", "source": "builtin"},
+  {"id": "save", "phrases": ["save", "save project", "save the project", "save set"], "keys": "ctrl+s", "description": "Save the Live Set", "source": "builtin"},
+  {"id": "new-audio-track", "phrases": ["new audio track", "add audio track", "insert audio track"], "keys": "ctrl+t", "description": "Insert audio track", "source": "builtin"},
+  {"id": "new-midi-track", "phrases": ["new midi track", "add midi track", "insert midi track"], "keys": "ctrl+shift+t", "description": "Insert MIDI track", "source": "builtin"},
+  {"id": "duplicate", "phrases": ["duplicate", "duplicate that", "duplicate selection"], "keys": "ctrl+d", "description": "Duplicate selection", "source": "builtin"},
+  {"id": "record", "phrases": ["record", "start recording", "arm record", "toggle record"], "keys": "f9", "description": "Toggle Arrangement Record", "source": "builtin"},
+  {"id": "toggle-playback", "phrases": ["toggle playback", "play pause", "play stop"], "keys": "space", "description": "Start/stop playback (toggle). Plain 'play' and 'stop' use OSC instead, which is not a toggle.", "source": "builtin"}
+]
