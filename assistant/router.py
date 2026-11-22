@@ -81,8 +81,11 @@ def _match(seg):
     if m:
         return [{"type": "goto_bar", "bar": int(m.group(1))}]
 
+    play = [{"type": "play"}] if re.search(r"\b(?:play|start playing|roll)\b", seg) else []
+    if re.search(r"\b(?:go to|jump to|back to|from|at) (?:the )?(?:top|start|beginning)(?: of)? (?:the |my |this )?(?:loop|loop region|looped section)\b", seg):
+        return [{"type": "goto_loop_start"}] + play
     if re.search(r"\b(?:go to|jump to|back to|from) (?:the )?(?:top|start|beginning)\b", seg):
-        return [{"type": "goto_bar", "bar": 1}]
+        return [{"type": "goto_bar", "bar": 1}] + play
 
     if re.search(r"\b(?:metronome|click)\b", seg):
         return [{"type": "metronome", "on": _on_off(seg)}]

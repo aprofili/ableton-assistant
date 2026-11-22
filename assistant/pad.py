@@ -31,8 +31,7 @@ PAD_KEYS = {
 
 # id -> (action list or None, name). b1 is voice; b7 is the scroll modifier (hold).
 ACTIONS = {
-    "b2": [{"type": "undo"}],
-    "b3": [{"type": "redo"}],
+    "b2": [{"type": "undo"}],  # with K7 held: redo (see VMOD_ACTIONS)
     "b4": [{"type": "record", "on": "toggle"}],
     "b5": [{"type": "metronome", "on": "toggle"}],
     "b6": [{"type": "loop", "on": "toggle"}],
@@ -41,6 +40,8 @@ ACTIONS = {
     "b10": [{"type": "next_cue"}],
     "dial_press": [{"type": "osc", "address": "/live/song/set/current_song_time", "args": [0.0]}],
 }
+
+VMOD_ACTIONS = {"b2": [{"type": "redo"}]}
 
 NAMES = {"b1": "K1", "b2": "K2", "b3": "K3", "b4": "K4", "b5": "K5", "b6": "K6", "b7": "K7",
          "b8": "K8", "b9": "K9", "b10": "K10", "dial_cw": "Dial CW", "dial_ccw": "Dial CCW",
@@ -52,9 +53,9 @@ def label_for(pid, st):
     if pid == "b1":
         return ("Listening..." if st.get("listening") else "Voice\n(hold)"), bool(st.get("listening"))
     if pid == "b2":
-        return "Undo", False
+        return ("Redo" if st.get("vmod") else "Undo"), False
     if pid == "b3":
-        return "Redo", False
+        return "That was\nWRONG", False
     if pid == "b4":
         return ("Stop\nrecording" if st.get("record") else "Record"), bool(st.get("record"))
     if pid == "b5":
@@ -195,6 +196,8 @@ class PadController:
             label, active = label_for(pid, st)
             out[pid] = {"label": label, "active": active, "pressed": pid in self.pressed, "key": self.keys[pid]}
         out["_connected"] = self.live_ok
+        last = getattr(self.assistant, "last", None)
+        out["_last"] = f"Last: “{last['text']}”  ({last['source']})" if last else ""
         return out
 
     # ---- input
@@ -221,7 +224,10 @@ class PadController:
             return
         if repeat:
             return
-        acts = ACTIONS.get(pid)
+        if pid == "b3":
+            self.assistant.mark_wrong()
+            return
+        acts = (VMOD_ACTIONS.get(pid) if "b7" in self.pressed else None) or ACTIONS.get(pid)
         if acts:
             self._q.put(acts)
 

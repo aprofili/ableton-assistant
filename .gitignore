@@ -10,3 +10,4 @@ update.log
 demo_*.png
 demo_overlay.log
 restart.log
+data/feedback/

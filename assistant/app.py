@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import sys
@@ -45,8 +46,8 @@ def beep(cfg, kind):
 
 class Outcome:
     """Truthy result of a handled command: where it was routed and what ran."""
-    def __init__(self, source, actions):
-        self.source, self.actions = source, actions
+    def __init__(self, source, actions, text="", before=None):
+        self.source, self.actions, self.text, self.before = source, actions, text, before
 
     def __bool__(self):
         return True
@@ -56,6 +57,15 @@ def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None, on_event=
     """Route and execute one transcribed command. Returns True on success."""
     t0 = time.time()
     acts, src = router.route(text, shortcuts)
+    from . import feedback
+    norm = router.normalize(text)
+    prior_bad = feedback.bad_for(norm)
+    hint = None
+    if prior_bad and cfg["claude"]["enabled"] and not dry:
+        hint = ("The user marked this earlier interpretation of the same phrase as WRONG: "
+                + json.dumps(prior_bad[-1]) + ". Do something different that better matches what they likely meant.")
+        log.info("Phrase %r was marked wrong before; asking Claude instead of %s", norm, src or "the router")
+        acts = None
     if acts is None:
         if not cfg["claude"]["enabled"]:
             log.info("Not understood locally and Claude fallback is off: %r", text)
@@ -66,7 +76,7 @@ def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None, on_event=
         from . import claude_api
         if on_event:
             on_event("api_start", text)
-        acts = claude_api.ask(text, actions.state(), shortcuts.known_summary(), cfg["claude"]["model"])
+        acts = claude_api.ask(text, actions.state(), shortcuts.known_summary(), cfg["claude"]["model"], hint=hint)
         src = "claude"
         keyed = [a for a in acts if a["type"] == "key" and a.get("learn_phrases")]
         if len(acts) == 1 and keyed:
@@ -76,13 +86,18 @@ def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None, on_event=
                 if notify:
                     notify(f"Learned shortcut: \"{keyed[0]['learn_phrases'][0]}\" -> {keyed[0]['keys']}")
     log.info("[%s] %s", src, acts)
+    before = None
     if not dry:
+        try:
+            before = actions.state()
+        except Exception:
+            pass
         actions.run(acts)
     log.info("done in %.2fs", time.time() - t0)
     if src == "claude" and on_event:
         from .describe import describe
         on_event("api_done", describe(acts))
-    return Outcome(src, acts)
+    return Outcome(src, acts, text, before)
 
 
 def select_mic(cfg):
