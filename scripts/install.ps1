@@ -2,7 +2,7 @@
 #   1. Python (downloaded from python.org if missing) + virtualenv + requirements
 #   2. AbletonOSC remote script into the Ableton User Library (patched to expose count_in_duration)
 #   3. Pre-downloads the speech model
-param([string]$UserLibrary = "$env:USERPROFILE\Documents\Ableton\User Library")
+param([string]$UserLibrary = "")
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
@@ -45,6 +45,16 @@ if (-not (Test-Path ".venv\Scripts\python.exe")) { & $py -m venv .venv }
 if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
 
 Write-Host "== AbletonOSC =="
+if (-not $UserLibrary) {
+    $candidates = @(
+        "$env:USERPROFILE\Documents\Ableton\User Library",
+        "$env:USERPROFILE\OneDrive\Documents\Ableton\User Library",
+        "D:\Ableton\User Library"
+    )
+    $UserLibrary = ($candidates | Where-Object { Test-Path $_ } | Select-Object -First 1)
+    if (-not $UserLibrary) { $UserLibrary = $candidates[0] }
+}
+Write-Host "Ableton User Library: $UserLibrary"
 $rs = Join-Path $UserLibrary "Remote Scripts"
 New-Item -ItemType Directory -Force -Path $rs | Out-Null
 $zip = Join-Path $env:TEMP "AbletonOSC.zip"
@@ -67,6 +77,19 @@ Write-Host "Installed to $dest"
 Write-Host "== Speech model =="
 & .\.venv\Scripts\python.exe -c "from faster_whisper import WhisperModel; WhisperModel('small.en', device='cpu', compute_type='int8'); print('model ready')"
 
+Write-Host "== Desktop shortcut =="
+$shell = New-Object -ComObject WScript.Shell
+$lnk = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath("Desktop")) "Ableton Assistant.lnk"))
+$lnk.TargetPath = "wscript.exe"
+$lnk.Arguments = '"' + (Join-Path $root "start_hidden.vbs") + '"'
+$lnk.WorkingDirectory = $root
+$lnk.Description = "Ableton voice assistant (system tray)"
+$lnk.Save()
+
 Write-Host ""
-Write-Host "DONE. Remaining: enable AbletonOSC in Live (Preferences > Link, Tempo & MIDI > Control Surface), then run run.bat"
+Write-Host "DONE."
+Write-Host "Remaining steps:"
+Write-Host "  1. Restart Live, then Preferences > Link, Tempo & MIDI > Control Surface > pick AbletonOSC (first install only)."
+Write-Host "  2. Double-click the 'Ableton Assistant' shortcut on your Desktop. Look for the mic icon in the system tray."
+Write-Host "  3. Right-click it: pick your Microphone, set your Trigger, and 'Edit API key (.env)' if you want Claude commands."
 Stop-Transcript | Out-Null

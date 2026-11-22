@@ -1,53 +1,46 @@
 # ableton-assistant
 
-Hands-free voice control for Ableton Live 12 on Windows.
-
-Hold a key (or press a Bluetooth/USB button that sends a key), say a command, release. The command runs in Live. Nothing talks back; you get short beeps (high = listening, chime = done, low = failed).
+Hands-free voice control for Ableton Live 12 on Windows. Hold a key (or a Bluetooth/USB button that sends a key), say a command, release. It runs in Live. Nothing talks back: beeps plus translucent on-screen popups.
 
 ```
-trigger key/button -> mic (chosen up front) -> local Whisper -> router
-                                                   |-- one-key shortcut registry   (local, free)
-                                                   |-- local command grammar        (local, free, via AbletonOSC)
-                                                   '-- Claude API fallback          (project-specific / fuzzy)
+trigger -> mic -> local Whisper -> router
+                                    |- one-key shortcut registry   (local, free)
+                                    |- local command grammar       (local, free, via AbletonOSC)
+                                    '- Claude API fallback         (project-specific / fuzzy)
 ```
 
-## Install
+## Install (new computer)
 
-1. Double-click `install.bat` (downloads Python from python.org if needed, packages, the AbletonOSC remote script, the speech model).
-2. In Live: Preferences > Link, Tempo & MIDI > Control Surface > pick **AbletonOSC**. Live shows "AbletonOSC: Listening for OSC on port 11000".
-3. For the Claude fallback only: create `.env` with `ANTHROPIC_API_KEY=sk-ant-...`. Everything in the first-test list runs without it.
-4. `run.bat --select-mic` to pick the command microphone (saved). Choose a WASAPI/MME entry, not ASIO.
-5. `run.bat --learn-trigger` and press your button/key. Default is `Scroll Lock`, hold to talk (not `ctrl+alt+space`, which the Claude desktop app uses).
-6. Double-click `start_hidden.vbs` to start with no console window. The assistant lives in the system tray (right-click for microphone, trigger, log, API key, quit, start-with-Windows). `run.bat` starts it with a visible console for debugging.
+1. Download the latest release zip (Releases page) and extract it somewhere permanent, e.g. `C:\Users\you\source\repos\ableton-assistant`. Don't copy a `.venv` folder from another PC.
+2. Double-click `install.bat`. It installs Python 3.12 if needed, the packages, the AbletonOSC remote script, the speech model, and a Desktop shortcut.
+3. Restart Live, then Preferences > Link, Tempo & MIDI > Control Surface > **AbletonOSC**.
+4. Double-click **Ableton Assistant** on the Desktop. A mic icon appears in the system tray (check the `^` overflow).
+5. Right-click the tray icon: pick your **Microphone**, set the **Trigger** (default Scroll Lock, hold to talk), and optionally **Edit API key (.env)** (`ANTHROPIC_API_KEY=sk-ant-...`).
 
-Useful: `run.bat --check` (Ableton connection), `run.bat --text "loop bars 5 to 9, metronome on, play"` (no mic), `run.bat --text "..." --dry-run`.
+Per-machine and never in the repo: `.venv`, `config.json` (mic, trigger), `.env` (API key), `logs/`.
 
-## Trigger modes (`config.json` -> `trigger.mode`)
+## Update
 
-- `hold`: records while held (needs press and release events)
-- `toggle`: press to start, press again to stop
-- `tap`: press once, recording ends after ~1 s of silence (for cheap one-event buttons)
-
-Pick keys nothing else uses (F13-F24, or a combo). The trigger key is not suppressed, so it also reaches Ableton.
+Extract the new release zip over the existing folder (your `.venv`, `config.json`, `.env` are untouched), then double-click `install.bat` again and use tray > Restart assistant.
 
 ## What runs locally (no API call)
 
-- `loop bars 5 to 9` / `create a loop region from measures 5 to 9`
+- `loop bars 5 to 9`, `create a loop region from measures 5 to 9` (start of bar 5 to start of bar 9; set `bar_range_inclusive` in `config.json` to include bar 9)
 - `metronome on|off`, `loop on|off`, `play`, `stop`, `continue`, `undo`, `redo`
-- `go to bar 17`, `play from bar 17`, `go to the start`, `next section`, `previous section` (sections = locators)
+- `go to bar 17`, `play from bar 17`, `go to the start`, `next section`, `previous section`
 - `count in two bars`, `tempo 128`
-- Several in one breath: `loop bars 5 to 9, metronome on and press play`
+- `make a section marker saying verse at measure 10`, `name this section chorus`
+- Several at once: `loop bars 5 to 9, metronome on and press play`
 - Single-key actions in `docs/SHORTCUTS.md`
 
-Bar ranges: "5 to 9" means the start of bar 5 to the start of bar 9 (as the loop brace reads on the ruler). Set `bar_range_inclusive` to `true` in `config.json` to include bar 9. Bar math uses the song's time signature at the moment of the command (no mid-song signature changes).
+Anything else goes to the Claude API (needs the key). Single-key actions it identifies are saved to `data/learned_shortcuts.json` and run locally afterwards.
 
-## Single-key shortcut learning
+## Triggers
 
-`data/shortcuts.json` holds built-in one-key actions; `data/learned_shortcuts.json` holds learned ones. When a request falls through to Claude and Claude identifies it as exactly one default Live shortcut, the phrase and key are saved and `docs/SHORTCUTS.md` is regenerated. Next time it runs locally. Project-specific requests ("loop the first half of the section I named Bridge") always stay on the API.
+`hold` records while held, `toggle` is press-start/press-stop, `tap` ends on ~1 s of silence (for one-event buttons). Pick a key nothing else uses. `Ctrl+Alt+Space` is taken by the Claude desktop app.
 
-## Files
+## Development
 
-- `assistant/router.py` local grammar; `shortcuts.py` registry; `claude_api.py` fallback
-- `assistant/ableton.py` AbletonOSC client + actions; `keys.py` shortcut sender (focuses Live first)
-- `assistant/audio.py`, `stt.py`, `trigger.py`, `app.py`
-- `tests/` offline tests against a mock AbletonOSC (`python -m unittest discover -s tests`)
+`python -m unittest discover -s tests` (offline, mock AbletonOSC). Console mode with logs: `run.bat`. CLI: `python -m assistant --text "loop bars 5 to 9" --dry-run`, `--check`, `--list-devices`, `--select-mic`, `--learn-trigger`.
+
+Releases: bump `VERSION` and `CHANGELOG.md`, tag `vX.Y.Z`, run `scripts/make_release.sh`.

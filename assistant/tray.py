@@ -180,8 +180,10 @@ class TrayApp:
             icon.stop()
             os._exit(0)
 
+        from . import __version__
         return Menu(
             MenuItem(lambda item: self.status_text(), None, enabled=False),
+            MenuItem(f"Ableton Assistant v{__version__}", None, enabled=False),
             Menu.SEPARATOR,
             MenuItem("Listening enabled", toggle_enabled, checked=lambda item: a.enabled),
             MenuItem("Microphone", Menu(self.mic_items)),
