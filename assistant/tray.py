@@ -1,6 +1,7 @@
 """System tray UI: status icon + right-click menu."""
 import logging
 import os
+import threading
 import sys
 
 import pystray
@@ -142,6 +143,11 @@ class TrayApp:
             self.cfg.setdefault("overlay", {})["enabled"] = v
             a.overlay.enabled = v
 
+        def toggle_updates(icon, item):
+            on = not self.cfg.get("updates", {}).get("auto", True)
+            self.cfg.setdefault("updates", {})["auto"] = on
+            cfgmod.save_user(updates={"auto": on})
+
         def toggle_beeps(icon, item):
             v = not self.cfg.get("beeps", True)
             cfgmod.save_user(beeps=v)
@@ -205,6 +211,9 @@ class TrayApp:
                 notif_item("all", "Every command"),
                 notif_item("off", "Off"),
             )),
+            MenuItem("Auto-update", toggle_updates, checked=lambda item: self.cfg.get("updates", {}).get("auto", True)),
+            MenuItem(lambda item: "Check for updates now" + (f" ({a.update_status})" if a.update_status else ""),
+                     lambda icon, item: threading.Thread(target=a.check_updates, daemon=True).start()),
             MenuItem("Start with Windows", toggle_autostart, checked=lambda item: autostart_enabled()),
             Menu.SEPARATOR,
             MenuItem("Check Ableton connection", lambda icon, item: a.check_ableton()),
