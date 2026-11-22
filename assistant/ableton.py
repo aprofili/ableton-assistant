@@ -163,6 +163,9 @@ class Actions:
     def a_goto_bar(self, a):
         self.osc.send("/live/song/set/current_song_time", self.bar_to_beats(a["bar"]))
 
+    def a_goto_loop_start(self, a):
+        self.osc.send("/live/song/set/current_song_time", self.osc.query("/live/song/get/loop_start")[0])
+
     def a_goto_cue(self, a):
         self.osc.send("/live/song/cue_point/jump", a["name"])
 

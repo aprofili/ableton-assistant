@@ -127,6 +127,8 @@ class PadMap:
             self._rrect(X(x0), Y(y0), X(x1), Y(y1), s * 0.015, fill)
             self._text(X(x0) + s * 0.012, Y(y0) + s * 0.012, pid.replace("b", "K"), s * 0.016, MUTED, anchor="nw")
             self._text(X((x0 + x1) / 2), Y((y0 + y1) / 2), k["label"], s * 0.021 if (x1 - x0) < 0.2 else s * 0.03, FG)
+        if snap.get("_last"):
+            c.create_text(w / 2, Y(0.66), text=snap["_last"], fill=MUTED, font=("Segoe UI", max(9, int(s * 0.02))))
         # footer
         status = "Connected to Live" if snap["_connected"] else "Waiting for Ableton (is AbletonOSC enabled?)"
         c.create_text(w / 2, h - 12, text=status + "   |   F11 or double-click: fullscreen", fill=GREEN if snap["_connected"] else AMBER,

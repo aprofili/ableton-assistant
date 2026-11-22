@@ -43,6 +43,7 @@ class Assistant:
         self.overlay = Overlay(ov.get("opacity", 0.85), ov.get("enabled", True))
         self.overlay.level_fn = lambda: self.rec.level if self.rec else 0.0
         self._api_active = False
+        self.last = None
         self.pad = PadController(cfg, self)
         self.padmap = PadMap(self.pad, cfg)
 
@@ -146,6 +147,9 @@ class Assistant:
                 ok = handle_text(text, self.cfg, self.actions, self.shortcuts,
                                  notify=lambda m: self.notify(m), on_event=self._on_event)
                 beep(self.cfg, "ok" if ok else "fail")
+                if ok and getattr(ok, "source", None):
+                    self.last = {"text": text, "source": ok.source, "actions": ok.actions,
+                                 "before": ok.before, "ts": time.time()}
                 if ok:
                     self.notify(f"“{text}”")
                 else:
@@ -167,6 +171,28 @@ class Assistant:
         elif kind == "api_done":
             self._api_active = False
             self.overlay.api_done(True, info)
+
+    def mark_wrong(self):
+        """Save feedback on the last voice command (what was heard, what ran, state, log, screenshot)."""
+        def work():
+            from . import feedback
+            from .router import normalize
+            last = self.last
+            if not last:
+                self._notify("No voice command to give feedback on yet.")
+                return
+            try:
+                now = self.actions.state() if self.actions else None
+            except Exception:
+                now = None
+            from . import __version__
+            feedback.record(last, now, normalize(last["text"]), __version__,
+                            self.cfg.get("pad", {}).get("feedback_screenshot", True))
+            log.info("FEEDBACK: marked wrong: %r -> %s", last["text"], last["actions"])
+            beep(self.cfg, "fail")
+            self.overlay.api_done(False, f"Noted as wrong: “{last['text']}”")
+            self._notify(f"Saved feedback on “{last['text']}”")
+        threading.Thread(target=work, daemon=True).start()
 
     # ---- settings changed from the tray --------------------------------
     def set_input_device(self, spec):

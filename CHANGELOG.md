@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- "That was wrong" feedback (pad K3, tray menu): saves heard text, actions, Live state, log tail and a screenshot to `data/feedback/`; the phrase is routed to Claude with a hint next time.
+- Fix: "play from the start of my loop" jumps to the loop start (and play commands now actually start playback).
+- Redo moved to K7 + K2 (K3 is now the feedback button).
+
 ## 1.1.0
 
 - Button pad support (XPPen ACK05 or any pad that sends keys): voice, undo/redo, record, metronome, loop, previous/next section, play/pause (state-aware), dial scroll with K7 as vertical modifier, dial press to start. See `docs/PAD.md`.

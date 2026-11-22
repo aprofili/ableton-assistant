@@ -276,6 +276,27 @@ class PadTests(unittest.TestCase):
             osc.close()
             live.close()
 
+    def test_play_from_loop_start(self):
+        sc = shortcuts_mod.Shortcuts()
+        self.assertEqual(router.route("play from the start of my loop", sc)[0], [{"type": "goto_loop_start"}, {"type": "play"}])
+        self.assertEqual(router.route("play from the start", sc)[0], [{"type": "goto_bar", "bar": 1}, {"type": "play"}])
+        self.assertEqual(router.route("go to the start", sc)[0], [{"type": "goto_bar", "bar": 1}])
+
+    def test_feedback_marks_phrase_bad(self):
+        import tempfile
+        from assistant import feedback
+        old = feedback.DIR
+        feedback.DIR = tempfile.mkdtemp()
+        try:
+            last = {"text": "play from the start of my loop", "source": "local", "actions": [{"type": "play"}], "before": {}}
+            e = feedback.record(last, {"tempo": 120}, "play from the start of my loop", "x", screenshot=False)
+            self.assertEqual(e["verdict"], "wrong")
+            self.assertEqual(feedback.bad_for("play from the start of my loop"), [[{"type": "play"}]])
+            self.assertEqual(feedback.bad_for("other"), [])
+        finally:
+            shutil.rmtree(feedback.DIR)
+            feedback.DIR = old
+
     def test_modifier_and_scroll_dispatch(self):
         pad = self._pad_mod()
         calls = []

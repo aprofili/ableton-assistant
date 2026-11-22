@@ -87,7 +87,7 @@ def build_system(known_shortcuts, state):
     return SYSTEM.replace("{known}", json.dumps(known_shortcuts)).replace("{state}", json.dumps(state))
 
 
-def ask(text, state, known_shortcuts, model="claude-haiku-5-5"):
+def ask(text, state, known_shortcuts, model="claude-haiku-5-5", hint=None):
     """Returns the list of action dicts from Claude."""
     _load_env()
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -101,7 +101,7 @@ def ask(text, state, known_shortcuts, model="claude-haiku-5-5"):
         system=build_system(known_shortcuts, state),
         tools=[TOOL],
         tool_choice={"type": "tool", "name": "perform_actions"},
-        messages=[{"role": "user", "content": text}],
+        messages=[{"role": "user", "content": text + (f"\n\n[{hint}]" if hint else "")}],
     )
     for block in resp.content:
         if block.type == "tool_use":
