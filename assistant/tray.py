@@ -209,6 +209,7 @@ class TrayApp:
             Menu.SEPARATOR,
             MenuItem("Check Ableton connection", lambda icon, item: a.check_ableton()),
             MenuItem("View log", open_log),
+            MenuItem("Pad map (second monitor)", lambda icon, item: a.padmap.show()),
             MenuItem("Shortcuts list", open_shortcuts),
             MenuItem("Edit API key (.env)", open_env),
             MenuItem("Edit settings (config.json)", open_config),

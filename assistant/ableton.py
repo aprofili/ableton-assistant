@@ -16,6 +16,7 @@ class AbletonOSC:
         self.client = SimpleUDPClient(host, send_port)
         self._replies = {}
         self._events = {}
+        self._qlock = threading.RLock()
         disp = Dispatcher()
         disp.set_default_handler(self._on_reply)
         self.server = ThreadingOSCUDPServer((host, recv_port), disp)
@@ -31,16 +32,17 @@ class AbletonOSC:
         self.client.send_message(addr, list(args))
 
     def query(self, addr, *args, timeout=1.5):
-        ev = threading.Event()
-        self._events[addr] = ev
-        self._replies.pop(addr, None)
-        self.send(addr, *args)
-        if not ev.wait(timeout):
-            raise TimeoutError(
-                f"No reply from Ableton for {addr}. Is AbletonOSC enabled as a "
-                "Control Surface in Live's Preferences > Link, Tempo & MIDI?"
-            )
-        return self._replies[addr]
+        with self._qlock:  # voice thread and pad poller share the reply table
+            ev = threading.Event()
+            self._events[addr] = ev
+            self._replies.pop(addr, None)
+            self.send(addr, *args)
+            if not ev.wait(timeout):
+                raise TimeoutError(
+                    f"No reply from Ableton for {addr}. Is AbletonOSC enabled as a "
+                    "Control Surface in Live's Preferences > Link, Tempo & MIDI?"
+                )
+            return self._replies[addr]
 
     def ping(self):
         try:
@@ -125,7 +127,23 @@ class Actions:
         self.osc.send("/live/song/set/loop", 1)
 
     def a_loop(self, a):
-        self.osc.send("/live/song/set/loop", 1 if a.get("on", True) else 0)
+        on = a.get("on", True)
+        if on == "toggle":
+            on = not bool(self.osc.query("/live/song/get/loop")[0])
+        self.osc.send("/live/song/set/loop", 1 if on else 0)
+
+    def a_playpause(self, a):
+        """Playing -> stop (playhead stays). Stopped -> continue from where it stopped."""
+        if bool(self.osc.query("/live/song/get/is_playing")[0]):
+            self.osc.send("/live/song/stop_playing")
+        else:
+            self.osc.send("/live/song/continue_playing")
+
+    def a_record(self, a):
+        on = a.get("on", "toggle")
+        if on == "toggle":
+            on = not bool(self.osc.query("/live/song/get/record_mode")[0])
+        self.osc.send("/live/song/set/record_mode", 1 if on else 0)
 
     def a_metronome(self, a):
         on = a.get("on", "toggle")

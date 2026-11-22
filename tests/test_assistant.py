@@ -233,5 +233,66 @@ class LearnTests(unittest.TestCase):
             shutil.rmtree(tmp)
 
 
+class PadTests(unittest.TestCase):
+    def _pad_mod(self):
+        import sys
+        import types
+        try:
+            import pynput  # noqa: F401
+        except ImportError:
+            kb = types.ModuleType("pynput.keyboard")
+            kb.Key = type("Key", (), {})
+            kb.Listener = object
+            pk = types.ModuleType("pynput")
+            pk.keyboard = kb
+            sys.modules.update({"pynput": pk, "pynput.keyboard": kb})
+        from assistant import pad
+        return pad
+
+    def test_labels_follow_state(self):
+        pad = self._pad_mod()
+        self.assertEqual(pad.label_for("b9", {"playing": True})[0], "Pause")
+        self.assertEqual(pad.label_for("b9", {"playing": False})[0], "Play")
+        self.assertTrue(pad.label_for("b5", {"metronome": True})[1])
+        self.assertEqual(pad.label_for("dial_cw", {"vmod": True})[0], "Scroll down")
+        self.assertEqual(pad.label_for("dial_cw", {})[0], "Scroll right")
+
+    def test_buttons_run_osc(self):
+        pad = self._pad_mod()
+        live = MockLive(21010, 21011)
+        osc = AbletonOSC("127.0.0.1", 21010, 21011)
+        try:
+            act = Actions(osc, {})
+            for pid in ("b9", "b6", "b4", "b2", "dial_press"):
+                act.run(pad.ACTIONS[pid])
+            live.props["is_playing"] = 1
+            act.run(pad.ACTIONS["b9"])
+            time.sleep(0.2)
+            sent = [m for m in live.received if "/get/" not in m[0] and m[0] != "/live/test"]
+            self.assertEqual(sent, [
+                ("/live/song/continue_playing",), ("/live/song/set/loop", 1), ("/live/song/set/record_mode", 1),
+                ("/live/song/undo",), ("/live/song/set/current_song_time", 0.0), ("/live/song/stop_playing",)])
+        finally:
+            osc.close()
+            live.close()
+
+    def test_modifier_and_scroll_dispatch(self):
+        pad = self._pad_mod()
+        calls = []
+
+        class Asst:
+            state = "idle"
+            actions = osc = None
+
+        pc = pad.PadController({"pad": {"keys": {"b2": "f5"}}}, Asst())
+        pc.scroller.scroll = lambda d, vertical: calls.append((d, vertical))
+        self.assertEqual(pc.by_key["f5"], "b2")
+        pc.handle("dial_cw")
+        pc.pressed.add("b7")
+        pc.handle("dial_ccw")
+        self.assertEqual(calls, [(1, False), (-1, True)])
+        self.assertEqual(pc.voice_key, "f13")
+
+
 if __name__ == "__main__":
     unittest.main()
