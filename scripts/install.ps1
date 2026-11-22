@@ -1,5 +1,5 @@
 # Installs everything the assistant needs on Windows. Safe to re-run.
-#   1. Python (via winget if missing) + virtualenv + requirements
+#   1. Python (downloaded from python.org if missing) + virtualenv + requirements
 #   2. AbletonOSC remote script into the Ableton User Library (patched to expose count_in_duration)
 #   3. Pre-downloads the speech model
 param([string]$UserLibrary = "$env:USERPROFILE\Documents\Ableton\User Library")
@@ -9,31 +9,37 @@ Set-Location $root
 $log = Join-Path $root "install.log"
 Start-Transcript -Path $log -Force | Out-Null
 
+function Test-Py($exe, $extra) {
+    try {
+        $out = & $exe @extra -c "import sys; print(sys.executable); print('%d.%d' % sys.version_info[:2])" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $out.Count -ge 2 -and $out[1] -match "^3\.(1[0-3])$") { return $out[0] }
+    } catch {}
+    return $null
+}
 function Find-Python {
-    foreach ($cmd in @("py -3.12", "py -3.13", "py -3.11", "py -3.10", "python")) {
-        try {
-            $parts = $cmd.Split(" ")
-            $exe = $parts[0]; $rest = $parts[1..($parts.Length)] | Where-Object { $_ }
-            $v = & $exe @rest -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
-            if ($LASTEXITCODE -eq 0 -and $v -match "^3\.(1[0-3])$") { return ,@($exe) + @($rest) }
-        } catch {}
+    $local = Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\python.exe"
+    if (Test-Path $local) { $r = Test-Py $local @(); if ($r) { return $r } }
+    foreach ($v in @("-3.12", "-3.13", "-3.11", "-3.10")) {
+        if (Get-Command py -ErrorAction SilentlyContinue) { $r = Test-Py "py" @($v); if ($r) { return $r } }
     }
+    if (Get-Command python -ErrorAction SilentlyContinue) { $r = Test-Py "python" @(); if ($r) { return $r } }
     return $null
 }
 
 Write-Host "== Python =="
 $py = Find-Python
 if (-not $py) {
-    Write-Host "No suitable Python found, installing Python 3.12 with winget..."
-    winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements --silent
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    Write-Host "No suitable Python found, downloading Python 3.12 from python.org..."
+    $installer = Join-Path $env:TEMP "python-3.12.10-amd64.exe"
+    Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe" -OutFile $installer
+    Start-Process -FilePath $installer -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_launcher=0 Include_test=0 Include_doc=0" -Wait
     $py = Find-Python
-    if (-not $py) { throw "Python install finished but python wasn't found. Open a new terminal and re-run install.bat." }
+    if (-not $py) { throw "Python install finished but python wasn't found." }
 }
-Write-Host "Using: $($py -join ' ')"
+Write-Host "Using: $py"
 
 Write-Host "== Virtualenv + packages =="
-if (-not (Test-Path ".venv\Scripts\python.exe")) { & $py[0] @($py[1..($py.Length)] | Where-Object { $_ }) -m venv .venv }
+if (-not (Test-Path ".venv\Scripts\python.exe")) { & $py -m venv .venv }
 & .\.venv\Scripts\python.exe -m pip install --upgrade pip
 & .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 if ($LASTEXITCODE -ne 0) { throw "pip install failed" }
