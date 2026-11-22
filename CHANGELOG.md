@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+
+- Maintenance: GitHub Actions workflow tests, merges and releases pushed feature branches automatically.
+
 ## 1.3.0
 
 - Auto-update: the running service checks GitHub releases (every 6 h, or tray > Check for updates now), installs newer releases over the folder, restarts, and rolls back if the new version fails to start. Tray toggle "Auto-update". Private repo needs `GITHUB_TOKEN` in `.env`.

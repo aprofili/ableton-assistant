@@ -51,4 +51,4 @@ XPPen ACK05 (or any key-sending pad): voice button, play/pause, undo/redo, recor
 
 `python -m unittest discover -s tests` (offline, mock AbletonOSC). Console mode with logs: `run.bat`. CLI: `python -m assistant --text "loop bars 5 to 9" --dry-run`, `--check`, `--list-devices`, `--select-mic`, `--learn-trigger`.
 
-Releases: bump `VERSION` and `CHANGELOG.md`, tag `vX.Y.Z`, run `scripts/make_release.sh`.
+Releases are automatic: push a `feature/*` branch with a bumped `VERSION` and `CHANGELOG.md`; `.github/workflows/ship.yml` runs tests, merges the PR and publishes the release. Manual: bump `VERSION` and `CHANGELOG.md`, tag `vX.Y.Z`, run `scripts/make_release.sh`.
