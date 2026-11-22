@@ -48,12 +48,27 @@ class Trigger:
     'tap': press to start, silence ends it."""
 
     def __init__(self, combo, mode, on_start, on_stop):
-        self.combo = parse_combo(combo)
+        self.combos = [parse_combo(combo)]
         self.mode = mode
         self.on_start, self.on_stop = on_start, on_stop
         self.pressed = set()
         self.active = False
         self.latched = False  # combo currently fully held (debounce key repeat)
+
+    @property
+    def combo(self):
+        return self.combos[0]
+
+    @combo.setter
+    def combo(self, value):
+        self.combos[0] = value
+
+    def add_combo(self, combo):
+        """Extra key that also triggers voice (e.g. the pad's voice button)."""
+        self.combos.append(parse_combo(combo))
+
+    def _held(self):
+        return any(c <= self.pressed for c in self.combos)
 
     def stop_from_outside(self):
         if self.active:
@@ -62,7 +77,7 @@ class Trigger:
 
     def _press(self, k):
         self.pressed.add(key_name(k))
-        if self.combo <= self.pressed and not self.latched:
+        if self._held() and not self.latched:
             self.latched = True
             if self.mode == "hold":
                 if not self.active:
@@ -81,7 +96,7 @@ class Trigger:
 
     def _release(self, k):
         self.pressed.discard(key_name(k))
-        if not (self.combo <= self.pressed):
+        if not self._held():
             self.latched = False
             if self.mode == "hold" and self.active:
                 self.active = False

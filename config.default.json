@@ -6,6 +6,7 @@
   "bar_range_inclusive": false,
   "claude": {"enabled": true, "model": "claude-haiku-5-5"},
   "beeps": true,
+  "pad": {"enabled": true, "auto_hover": true, "map_monitor": 1, "keys": {}},
   "overlay": {"enabled": true, "opacity": 0.85},
   "notifications": "errors",
   "silence_seconds": 1.0,

@@ -10,6 +10,8 @@ from .ableton import AbletonOSC, Actions
 from .app import beep, handle_text
 from .shortcuts import Shortcuts
 from .overlay import Overlay
+from .pad import PadController
+from .padmap import PadMap
 
 log = logging.getLogger("assistant")
 _mutex = None
@@ -41,6 +43,8 @@ class Assistant:
         self.overlay = Overlay(ov.get("opacity", 0.85), ov.get("enabled", True))
         self.overlay.level_fn = lambda: self.rec.level if self.rec else 0.0
         self._api_active = False
+        self.pad = PadController(cfg, self)
+        self.padmap = PadMap(self.pad, cfg)
 
     # ---- helpers -------------------------------------------------------
     def set_state(self, s):
@@ -87,6 +91,9 @@ class Assistant:
             self.stt.warm_up()
             t = self.cfg["trigger"]
             self.trigger = Trigger(t["keys"], t["mode"], self._on_start, self._on_stop)
+            if self.pad.enabled:
+                self.trigger.add_combo(self.pad.voice_key)
+                self.pad.start()
             self.ready = True
             self.set_state("idle")
             log.info("Ready. Trigger: %s (%s). Mic: %s.", t["keys"], t["mode"], self.cfg["input_device"] or "system default")

@@ -3,9 +3,10 @@ import sys
 import time
 
 
-def focus_ableton():
+def find_ableton_hwnd():
+    """Visible top-level Live window handle, or None."""
     if sys.platform != "win32":
-        return False
+        return None
     import ctypes
     from ctypes import wintypes
 
@@ -24,9 +25,18 @@ def focus_ableton():
         return True
 
     user32.EnumWindows(cb, 0)
-    if not found:
+    return found[0] if found else None
+
+
+def focus_ableton():
+    if sys.platform != "win32":
         return False
-    hwnd = found[0]
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    hwnd = find_ableton_hwnd()
+    if not hwnd:
+        return False
     if user32.IsIconic(hwnd):
         user32.ShowWindow(hwnd, 9)  # SW_RESTORE
     # Alt tap lets SetForegroundWindow succeed when we aren't the foreground process
