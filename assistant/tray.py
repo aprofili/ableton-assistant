@@ -136,6 +136,12 @@ class TrayApp:
             cfgmod.save_user(claude={"enabled": v})
             self.cfg["claude"]["enabled"] = v
 
+        def toggle_overlay(icon, item):
+            v = not self.cfg.get("overlay", {}).get("enabled", True)
+            cfgmod.save_user(overlay={"enabled": v})
+            self.cfg.setdefault("overlay", {})["enabled"] = v
+            a.overlay.enabled = v
+
         def toggle_beeps(icon, item):
             v = not self.cfg.get("beeps", True)
             cfgmod.save_user(beeps=v)
@@ -165,6 +171,11 @@ class TrayApp:
         def open_shortcuts(icon, item):
             open_in_notepad(os.path.join(cfgmod.ROOT, "docs", "SHORTCUTS.md"))
 
+        def restart(icon, item):
+            import subprocess
+            subprocess.Popen(["wscript.exe", os.path.join(cfgmod.ROOT, "restart_hidden.vbs")],
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
         def quit_(icon, item):
             icon.stop()
             os._exit(0)
@@ -184,6 +195,8 @@ class TrayApp:
             )),
             MenuItem("Use Claude for complex commands", toggle_claude,
                      checked=lambda item: self.cfg["claude"]["enabled"]),
+            MenuItem("On-screen indicator", toggle_overlay,
+                     checked=lambda item: self.cfg.get("overlay", {}).get("enabled", True)),
             MenuItem("Beeps", toggle_beeps, checked=lambda item: self.cfg.get("beeps", True)),
             MenuItem("Notifications", Menu(
                 notif_item("errors", "Errors only"),
@@ -198,6 +211,7 @@ class TrayApp:
             MenuItem("Edit API key (.env)", open_env),
             MenuItem("Edit settings (config.json)", open_config),
             Menu.SEPARATOR,
+            MenuItem("Restart assistant", restart),
             MenuItem("Quit", quit_),
         )
 
@@ -206,6 +220,8 @@ class TrayApp:
 
 
 def run_tray(cfg):
+    from .overlay import set_dpi_aware
+    set_dpi_aware()
     try:
         TrayApp(cfg).run()
     except Exception:

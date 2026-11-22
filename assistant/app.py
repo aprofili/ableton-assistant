@@ -43,7 +43,16 @@ def beep(cfg, kind):
     threading.Thread(target=_b, daemon=True).start()
 
 
-def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None):
+class Outcome:
+    """Truthy result of a handled command: where it was routed and what ran."""
+    def __init__(self, source, actions):
+        self.source, self.actions = source, actions
+
+    def __bool__(self):
+        return True
+
+
+def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None, on_event=None):
     """Route and execute one transcribed command. Returns True on success."""
     t0 = time.time()
     acts, src = router.route(text, shortcuts)
@@ -53,8 +62,10 @@ def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None):
             return False
         if dry:
             log.info("[dry] would call Claude API for: %r", text)
-            return True
+            return Outcome("claude", [])
         from . import claude_api
+        if on_event:
+            on_event("api_start", text)
         acts = claude_api.ask(text, actions.state(), shortcuts.known_summary(), cfg["claude"]["model"])
         src = "claude"
         keyed = [a for a in acts if a["type"] == "key" and a.get("learn_phrases")]
@@ -68,7 +79,10 @@ def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None):
     if not dry:
         actions.run(acts)
     log.info("done in %.2fs", time.time() - t0)
-    return True
+    if src == "claude" and on_event:
+        from .describe import describe
+        on_event("api_done", describe(acts))
+    return Outcome(src, acts)
 
 
 def select_mic(cfg):

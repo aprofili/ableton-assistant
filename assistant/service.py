@@ -9,6 +9,7 @@ from . import config as cfgmod
 from .ableton import AbletonOSC, Actions
 from .app import beep, handle_text
 from .shortcuts import Shortcuts
+from .overlay import Overlay
 
 log = logging.getLogger("assistant")
 _mutex = None
@@ -36,6 +37,10 @@ class Assistant:
         self._recording = False
         self.osc = self.actions = self.rec = self.stt = self.trigger = None
         self.shortcuts = Shortcuts()
+        ov = cfg.get("overlay", {})
+        self.overlay = Overlay(ov.get("opacity", 0.85), ov.get("enabled", True))
+        self.overlay.level_fn = lambda: self.rec.level if self.rec else 0.0
+        self._api_active = False
 
     # ---- helpers -------------------------------------------------------
     def set_state(self, s):
@@ -49,6 +54,7 @@ class Assistant:
         self._notify(msg)
 
     def start(self):
+        self.overlay.start()
         threading.Thread(target=self._boot, daemon=True).start()
 
     def _boot(self):
@@ -98,6 +104,7 @@ class Assistant:
         self._recording = True
         beep(self.cfg, "start")
         self.set_state("listening")
+        self.overlay.listening()
         mode = self.trigger.mode
         if mode == "tap":
             self.rec.on_auto_stop = self.trigger.stop_from_outside
@@ -108,6 +115,7 @@ class Assistant:
             log.info("ERROR: can't open the microphone: %s", e)
             self.notify(f"Can't open the microphone: {e}", "error")
             beep(self.cfg, "fail")
+            self.overlay.hide()
             self.set_state("idle")
 
     def _on_stop(self):
@@ -115,6 +123,7 @@ class Assistant:
             return
         self._recording = False
         audio = self.rec.stop()
+        self.overlay.hide()
         self.set_state("working")
         threading.Thread(target=self._process, args=(audio,), daemon=True).start()
 
@@ -127,7 +136,8 @@ class Assistant:
                 log.info("heard %r (%.2fs)", text, time.time() - t0)
                 if not text:
                     return
-                ok = handle_text(text, self.cfg, self.actions, self.shortcuts, notify=lambda m: self.notify(m))
+                ok = handle_text(text, self.cfg, self.actions, self.shortcuts,
+                                 notify=lambda m: self.notify(m), on_event=self._on_event)
                 beep(self.cfg, "ok" if ok else "fail")
                 if ok:
                     self.notify(f"“{text}”")
@@ -135,10 +145,21 @@ class Assistant:
                     self.notify(f"Not understood: “{text}”", "error")
             except Exception as e:
                 log.info("ERROR: %s", e)
+                if self._api_active:
+                    self._api_active = False
+                    self.overlay.api_done(False, str(e))
                 beep(self.cfg, "fail")
                 self.notify(f"“{text}” failed: {e}", "error")
             finally:
                 self.set_state("idle")
+
+    def _on_event(self, kind, info):
+        if kind == "api_start":
+            self._api_active = True
+            self.overlay.api_start(info)
+        elif kind == "api_done":
+            self._api_active = False
+            self.overlay.api_done(True, info)
 
     # ---- settings changed from the tray --------------------------------
     def set_input_device(self, spec):

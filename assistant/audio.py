@@ -47,6 +47,7 @@ class Recorder:
         self._started = 0.0
         self._noise = 0.003
         self._endpoint = False
+        self.level = 0.0
 
     def start(self, endpoint=False):
         self._endpoint = endpoint
@@ -62,6 +63,7 @@ class Recorder:
     def _cb(self, indata, frames, t, status):
         chunk = indata[:, 0].copy()
         self._chunks.append(chunk)
+        self.level = float(np.sqrt(np.mean(chunk ** 2)))
         if not self._endpoint:
             return
         rms = float(np.sqrt(np.mean(chunk ** 2)))

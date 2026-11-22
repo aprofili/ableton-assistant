@@ -7,3 +7,5 @@ logs/
 first_test.log
 devices.txt
 update.log
+demo_*.png
+demo_overlay.log
