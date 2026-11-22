@@ -1,0 +1,188 @@
+"""The voice service: trigger -> mic -> Whisper -> router/Claude -> Ableton. No UI; the tray (or console) drives it."""
+import logging
+import subprocess
+import sys
+import threading
+import time
+
+from . import config as cfgmod
+from .ableton import AbletonOSC, Actions
+from .app import beep, handle_text
+from .shortcuts import Shortcuts
+
+log = logging.getLogger("assistant")
+_mutex = None
+
+
+def single_instance():
+    """True if we're the only instance (Windows named mutex); always True elsewhere."""
+    global _mutex
+    if sys.platform != "win32":
+        return True
+    import ctypes
+    _mutex = ctypes.windll.kernel32.CreateMutexW(None, False, "Local\\AbletonVoiceAssistant")
+    return ctypes.windll.kernel32.GetLastError() != 183  # ERROR_ALREADY_EXISTS
+
+
+class Assistant:
+    def __init__(self, cfg, on_state=None, notify=None):
+        self.cfg = cfg
+        self.on_state = on_state or (lambda s: None)
+        self._notify = notify or (lambda msg: None)
+        self.state = "loading"  # loading | idle | listening | working | error
+        self.enabled = True
+        self.ready = False
+        self.busy = threading.Lock()
+        self._recording = False
+        self.osc = self.actions = self.rec = self.stt = self.trigger = None
+        self.shortcuts = Shortcuts()
+
+    # ---- helpers -------------------------------------------------------
+    def set_state(self, s):
+        self.state = s
+        self.on_state(s)
+
+    def notify(self, msg, level="info"):
+        mode = self.cfg.get("notifications", "errors")
+        if mode == "off" or (level == "info" and mode != "all"):
+            return
+        self._notify(msg)
+
+    def start(self):
+        threading.Thread(target=self._boot, daemon=True).start()
+
+    def _boot(self):
+        try:
+            from .audio import Recorder, resolve_device
+            from .stt import Transcriber
+            from .trigger import Trigger
+
+            o = self.cfg["osc"]
+            self.osc = AbletonOSC(o["host"], o["send_port"], o["recv_port"])
+            try:
+                from .keys import KeySender
+                keys = KeySender()
+            except Exception:
+                keys = None
+            self.actions = Actions(self.osc, self.cfg, keys)
+            try:
+                device = resolve_device(self.cfg["input_device"])
+            except RuntimeError as e:
+                log.info("%s - using the system default mic", e)
+                self.notify("Saved microphone not found; using the system default.", "error")
+                device = None
+            self.rec = Recorder(device, self.cfg["silence_seconds"], self.cfg["max_record_seconds"])
+            if not self.osc.ping():
+                log.info("WARNING: no reply from Ableton. Enable AbletonOSC in Live's Preferences > Link, Tempo & MIDI.")
+                self.notify("No reply from Ableton. Is AbletonOSC enabled in Live's preferences?", "error")
+            log.info("Loading speech model (%s)...", self.cfg["whisper"]["model"])
+            w = self.cfg["whisper"]
+            self.stt = Transcriber(w["model"], w["device"], w["compute_type"])
+            self.stt.warm_up()
+            t = self.cfg["trigger"]
+            self.trigger = Trigger(t["keys"], t["mode"], self._on_start, self._on_stop)
+            self.ready = True
+            self.set_state("idle")
+            log.info("Ready. Trigger: %s (%s). Mic: %s.", t["keys"], t["mode"], self.cfg["input_device"] or "system default")
+            self.trigger.run()
+        except Exception as e:
+            log.exception("Service failed to start")
+            self.set_state("error")
+            self.notify(f"Failed to start: {e}", "error")
+
+    # ---- recording flow ------------------------------------------------
+    def _on_start(self):
+        if not self.enabled or not self.ready:
+            self._recording = False
+            return
+        self._recording = True
+        beep(self.cfg, "start")
+        self.set_state("listening")
+        mode = self.trigger.mode
+        if mode == "tap":
+            self.rec.on_auto_stop = self.trigger.stop_from_outside
+        try:
+            self.rec.start(endpoint=(mode == "tap"))
+        except Exception as e:
+            self._recording = False
+            log.info("ERROR: can't open the microphone: %s", e)
+            self.notify(f"Can't open the microphone: {e}", "error")
+            beep(self.cfg, "fail")
+            self.set_state("idle")
+
+    def _on_stop(self):
+        if not self._recording:
+            return
+        self._recording = False
+        audio = self.rec.stop()
+        self.set_state("working")
+        threading.Thread(target=self._process, args=(audio,), daemon=True).start()
+
+    def _process(self, audio):
+        text = ""
+        with self.busy:
+            try:
+                t0 = time.time()
+                text = self.stt.transcribe(audio)
+                log.info("heard %r (%.2fs)", text, time.time() - t0)
+                if not text:
+                    return
+                ok = handle_text(text, self.cfg, self.actions, self.shortcuts, notify=lambda m: self.notify(m))
+                beep(self.cfg, "ok" if ok else "fail")
+                if ok:
+                    self.notify(f"“{text}”")
+                else:
+                    self.notify(f"Not understood: “{text}”", "error")
+            except Exception as e:
+                log.info("ERROR: %s", e)
+                beep(self.cfg, "fail")
+                self.notify(f"“{text}” failed: {e}", "error")
+            finally:
+                self.set_state("idle")
+
+    # ---- settings changed from the tray --------------------------------
+    def set_input_device(self, spec):
+        from .audio import resolve_device
+        cfgmod.save_user(input_device=spec)
+        self.cfg["input_device"] = spec
+        if self.rec is not None and not self._recording:
+            try:
+                self.rec.device = resolve_device(spec)
+            except RuntimeError as e:
+                self.notify(str(e), "error")
+
+    def set_trigger_mode(self, mode):
+        cfgmod.save_user(trigger={"mode": mode})
+        self.cfg["trigger"]["mode"] = mode
+        if self.trigger:
+            self.trigger.mode = mode
+
+    def learn_trigger(self):
+        """Capture the next key/button press and make it the trigger."""
+        def work():
+            from .trigger import learn_combo, parse_combo
+            self.enabled = False
+            try:
+                self._notify("Press the key or button you want to use as the trigger (20 s).")
+                combo = learn_combo(timeout=20)
+                if not combo:
+                    self._notify("No key detected; trigger unchanged.")
+                    return
+                cfgmod.save_user(trigger={"keys": combo})
+                self.cfg["trigger"]["keys"] = combo
+                if self.trigger:
+                    self.trigger.combo = parse_combo(combo)
+                self._notify(f"Trigger set to: {combo}")
+            finally:
+                self.enabled = True
+        threading.Thread(target=work, daemon=True).start()
+
+    def check_ableton(self):
+        ok = bool(self.osc and self.osc.ping())
+        self._notify("Connected to Ableton." if ok else
+                     "No reply from Ableton. Enable AbletonOSC in Live's Preferences > Link, Tempo & MIDI.")
+        return ok
+
+
+def open_in_notepad(path):
+    subprocess.Popen(["notepad.exe", path], creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))

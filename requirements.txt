@@ -4,3 +4,5 @@ numpy>=1.26
 pynput>=1.7.6
 faster-whisper>=1.0.3
 anthropic>=0.40
+pystray>=0.19
+pillow>=10.0

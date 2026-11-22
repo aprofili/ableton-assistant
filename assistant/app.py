@@ -17,10 +17,15 @@ def setup_logging():
     os.makedirs(os.path.join(cfgmod.ROOT, "logs"), exist_ok=True)
     fmt = logging.Formatter("%(asctime)s %(message)s", "%H:%M:%S")
     log.setLevel(logging.INFO)
-    for h in (logging.StreamHandler(sys.stdout),
-              logging.FileHandler(os.path.join(cfgmod.ROOT, "logs", "assistant.log"), encoding="utf-8")):
+    from logging.handlers import RotatingFileHandler
+    handlers = [RotatingFileHandler(os.path.join(cfgmod.ROOT, "logs", "assistant.log"),
+                                    maxBytes=1_000_000, backupCount=2, encoding="utf-8")]
+    if sys.stdout is not None:  # pythonw.exe has no stdout
+        handlers.insert(0, logging.StreamHandler(sys.stdout))
+    for h in handlers:
         h.setFormatter(fmt)
         log.addHandler(h)
+    log.propagate = False
 
 
 def beep(cfg, kind):
@@ -38,7 +43,7 @@ def beep(cfg, kind):
     threading.Thread(target=_b, daemon=True).start()
 
 
-def handle_text(text, cfg, actions, shortcuts, dry=False):
+def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None):
     """Route and execute one transcribed command. Returns True on success."""
     t0 = time.time()
     acts, src = router.route(text, shortcuts)
@@ -57,6 +62,8 @@ def handle_text(text, cfg, actions, shortcuts, dry=False):
             if shortcuts.learn(keyed[0]["keys"], keyed[0]["learn_phrases"]):
                 log.info("Learned single-key shortcut: %s -> %s (see docs/SHORTCUTS.md)",
                          keyed[0]["learn_phrases"], keyed[0]["keys"])
+                if notify:
+                    notify(f"Learned shortcut: \"{keyed[0]['learn_phrases'][0]}\" -> {keyed[0]['keys']}")
     log.info("[%s] %s", src, acts)
     if not dry:
         actions.run(acts)
@@ -85,6 +92,7 @@ def main():
     ap.add_argument("--text", help="run one command from text (no mic); good for testing")
     ap.add_argument("--dry-run", action="store_true", help="with --text: show actions without sending to Ableton")
     ap.add_argument("--check", action="store_true", help="check the connection to Ableton and exit")
+    ap.add_argument("--no-tray", action="store_true", help="run in this console instead of the system tray")
     args = ap.parse_args()
 
     setup_logging()
@@ -134,55 +142,31 @@ def main():
         sys.exit(0 if ok else 1)
 
     # ---- live mode ----
-    from .audio import Recorder, resolve_device
-    from .stt import Transcriber
-    from .trigger import Trigger
+    from .service import Assistant, single_instance
 
-    if cfg["input_device"] is None and sys.stdin.isatty():
-        select_mic(cfg)
-        cfg = cfgmod.load()
-    device = resolve_device(cfg["input_device"])
+    if not single_instance():
+        msg = "Ableton Assistant is already running (look for its icon in the system tray)."
+        print(msg)
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, msg, "Ableton Assistant", 0x40)
+        except Exception:
+            pass
+        return
+    osc.close()  # the service owns the OSC connection; free the port
 
-    if not osc.ping():
-        log.info("WARNING: no reply from Ableton. Enable AbletonOSC as a Control Surface in Live's Preferences.")
-    log.info("Loading speech model (%s)...", cfg["whisper"]["model"])
-    stt = Transcriber(cfg["whisper"]["model"], cfg["whisper"]["device"], cfg["whisper"]["compute_type"])
-    stt.warm_up()
+    if args.no_tray:
+        if cfg["input_device"] is None and sys.stdin and sys.stdin.isatty():
+            select_mic(cfg)
+            cfg = cfgmod.load()
+        asst = Assistant(cfg)
+        asst.start()
+        try:
+            while True:
+                time.sleep(3600)
+        except KeyboardInterrupt:
+            pass
+        return
 
-    rec = Recorder(device, cfg["silence_seconds"], cfg["max_record_seconds"])
-    busy = threading.Lock()
-    trig_cfg = cfg["trigger"]
-    holder = {}
-
-    def process(audio):
-        with busy:
-            try:
-                t0 = time.time()
-                text = stt.transcribe(audio)
-                log.info("heard %r (%.2fs)", text, time.time() - t0)
-                if not text:
-                    return
-                ok = handle_text(text, cfg, actions, shortcuts)
-                beep(cfg, "ok" if ok else "fail")
-            except Exception as e:
-                log.info("ERROR: %s", e)
-                beep(cfg, "fail")
-
-    def on_start():
-        beep(cfg, "start")
-        if trig_cfg["mode"] == "tap":
-            rec.on_auto_stop = lambda: holder["trigger"].stop_from_outside()
-        rec.start(endpoint=trig_cfg["mode"] == "tap")
-
-    def on_stop():
-        audio = rec.stop()
-        threading.Thread(target=process, args=(audio,), daemon=True).start()
-
-    trigger = Trigger(trig_cfg["keys"], trig_cfg["mode"], on_start, on_stop)
-    holder["trigger"] = trigger
-    log.info("Ready. Trigger: %s (%s). Mic: %s. Ctrl+C to quit.", trig_cfg["keys"], trig_cfg["mode"],
-             cfg["input_device"] or "system default")
-    try:
-        trigger.run()
-    except KeyboardInterrupt:
-        pass
+    from .tray import run_tray
+    run_tray(cfg)

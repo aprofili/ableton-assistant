@@ -18,7 +18,7 @@ trigger key/button -> mic (chosen up front) -> local Whisper -> router
 3. For the Claude fallback only: create `.env` with `ANTHROPIC_API_KEY=sk-ant-...`. Everything in the first-test list runs without it.
 4. `run.bat --select-mic` to pick the command microphone (saved). Choose a WASAPI/MME entry, not ASIO.
 5. `run.bat --learn-trigger` and press your button/key. Default is `Scroll Lock`, hold to talk (not `ctrl+alt+space`, which the Claude desktop app uses).
-6. `run.bat` to start.
+6. Double-click `start_hidden.vbs` to start with no console window. The assistant lives in the system tray (right-click for microphone, trigger, log, API key, quit, start-with-Windows). `run.bat` starts it with a visible console for debugging.
 
 Useful: `run.bat --check` (Ableton connection), `run.bat --text "loop bars 5 to 9, metronome on, play"` (no mic), `run.bat --text "..." --dry-run`.
 
