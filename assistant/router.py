@@ -46,8 +46,29 @@ def _on_off(seg):
     return "toggle"
 
 
+_SECTION = r"(?:section|marker|locator|cue)"
+_NOUN = r"(?:" + _SECTION + r"\b\s*)+"
+_NAMED = r"(?:called|named|saying|that says|labeled|labelled|with the name|for)?"
+
+
+def _title(s):
+    return s.strip().title()
+
+
 def _match(seg):
     """Match one normalized segment. Returns list of actions or None."""
+    m = re.search(r"\b(?:make|add|create|insert|put|drop)\b.*?\b" + _NOUN + _NAMED +
+                  r"\s*(.+?)\s+(?:at|on) (?:the )?(?:bar )?(\d+)\b", seg)
+    if m and m.group(1).strip():
+        return [{"type": "add_section", "bar": int(m.group(2)), "name": _title(m.group(1))}]
+    m = re.search(r"\b(?:make|add|create|insert|put|drop)\b.*?\b" + _NOUN + r"(?:at|on) (?:the )?(?:bar )?(\d+)\s*" +
+                  _NAMED + r"\s*(.+)$", seg)
+    if m and m.group(2).strip():
+        return [{"type": "add_section", "bar": int(m.group(1)), "name": _title(m.group(2))}]
+    m = re.search(r"\b(?:name|call|rename|label)\s+(?:this|the current|current)\s+" + _SECTION + r"\s*(?:to|as)?\s*(.+)$", seg)
+    if m and m.group(1).strip():
+        return [{"type": "name_section", "name": _title(m.group(1))}]
+
     m = re.search(r"\bplay from (?:the )?(?:bar )?(\d+)\b", seg)
     if m:
         return [{"type": "goto_bar", "bar": int(m.group(1))}, {"type": "play"}]

@@ -95,6 +95,16 @@ class Actions:
             "sections": sections,
         }
 
+    def _cues(self):
+        flat = self.osc.query("/live/song/get/cue_points")
+        return [(flat[i], float(flat[i + 1])) for i in range(0, len(flat) - 1, 2)]
+
+    def _cue_index_at(self, beats):
+        for i, (_, t) in enumerate(self._cues()):
+            if abs(t - beats) < 1e-3:
+                return i
+        return None
+
     # ---- execution -----------------------------------------------------
     def run(self, actions):
         for a in actions:
@@ -143,6 +153,32 @@ class Actions:
 
     def a_prev_cue(self, a):
         self.osc.send("/live/song/jump_to_prev_cue")
+
+    def a_add_section(self, a):
+        """Create (or rename) a locator at the start of a bar. Playhead is restored afterwards."""
+        bpb = self.beats_per_bar()
+        t = self.bar_to_beats(a["bar"], bpb)
+        idx = self._cue_index_at(t)
+        if idx is None:
+            prev = self.osc.query("/live/song/get/current_song_time")[0]
+            self.osc.send("/live/song/set/current_song_time", t)
+            time.sleep(0.15)
+            self.osc.send("/live/song/cue_point/add_or_delete")  # toggles a locator at the playhead
+            time.sleep(0.15)
+            self.osc.send("/live/song/set/current_song_time", prev)
+            idx = self._cue_index_at(t)
+            if idx is None:
+                raise RuntimeError(f"Couldn't create a locator at bar {a['bar']}")
+        self.osc.send("/live/song/cue_point/set/name", idx, str(a["name"]))
+
+    def a_name_section(self, a):
+        bpb = self.beats_per_bar()
+        pos = self.osc.query("/live/song/get/current_song_time")[0]
+        prior = [i for i, (_, t) in enumerate(self._cues()) if t <= pos + 1e-3]
+        if prior:
+            self.osc.send("/live/song/cue_point/set/name", prior[-1], str(a["name"]))
+        else:
+            self.a_add_section({"bar": int(pos // bpb) + 1, "name": a["name"]})
 
     def a_set_count_in(self, a):
         # Live's Song.count_in_duration: 0 none, 1 = 1 bar, 2 = 2 bars, 3 = 4 bars.

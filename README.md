@@ -13,11 +13,11 @@ trigger key/button -> mic (chosen up front) -> local Whisper -> router
 
 ## Install
 
-1. Double-click `install.bat` (installs Python via winget if needed, packages, the AbletonOSC remote script, the speech model).
+1. Double-click `install.bat` (downloads Python from python.org if needed, packages, the AbletonOSC remote script, the speech model).
 2. In Live: Preferences > Link, Tempo & MIDI > Control Surface > pick **AbletonOSC**. Live shows "AbletonOSC: Listening for OSC on port 11000".
 3. For the Claude fallback only: create `.env` with `ANTHROPIC_API_KEY=sk-ant-...`. Everything in the first-test list runs without it.
 4. `run.bat --select-mic` to pick the command microphone (saved). Choose a WASAPI/MME entry, not ASIO.
-5. `run.bat --learn-trigger` and press your button/key. Default is `ctrl+alt+space`, hold to talk.
+5. `run.bat --learn-trigger` and press your button/key. Default is `Scroll Lock`, hold to talk (not `ctrl+alt+space`, which the Claude desktop app uses).
 6. `run.bat` to start.
 
 Useful: `run.bat --check` (Ableton connection), `run.bat --text "loop bars 5 to 9, metronome on, play"` (no mic), `run.bat --text "..." --dry-run`.

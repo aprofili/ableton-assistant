@@ -1,5 +1,5 @@
 {
-  "trigger": {"keys": "ctrl+alt+space", "mode": "hold"},
+  "trigger": {"keys": "scroll_lock", "mode": "hold"},
   "input_device": null,
   "whisper": {"model": "small.en", "device": "cpu", "compute_type": "int8"},
   "osc": {"host": "127.0.0.1", "send_port": 11000, "recv_port": 11001},

@@ -15,10 +15,15 @@ Action types:
   set_loop{start_bar,end_bar}  set loop region and turn loop on
   loop{on}  metronome{on: true|false|"toggle"}  play  continue  stop  undo  redo
   goto_bar{bar}  goto_cue{name}  next_cue  prev_cue  set_count_in{bars: 0|1|2|4}  set_tempo{bpm}
+  add_section{bar,name}  create a locator at a bar and name it (renames it if one already exists there)
+  name_section{name}  name the section the playhead is currently in (creates a locator there if none precedes it)
   key{keys, learn_phrases}  one Ableton keyboard shortcut, e.g. "ctrl+shift+t", "f9", "tab"
   osc{address,args}  raw AbletonOSC call if nothing above fits (e.g. /live/song/cue_point/add_or_delete,
                      /live/song/cue_point/set/name [index, name])
   wait{seconds}
+
+If the transcript is not a command for Live (chatter with bandmates, a fragment, noise), return an empty
+actions list. Never guess at a command that wasn't clearly given.
 
 Prefer high-level actions over osc/key. Order actions as they should execute.
 
@@ -49,7 +54,7 @@ TOOL = {
                         "type": {"type": "string", "enum": [
                             "set_loop", "loop", "metronome", "play", "continue", "stop", "undo", "redo",
                             "goto_bar", "goto_cue", "next_cue", "prev_cue", "set_count_in", "set_tempo",
-                            "key", "osc", "wait"]},
+                            "add_section", "name_section", "key", "osc", "wait"]},
                         "start_bar": {"type": "number"}, "end_bar": {"type": "number"},
                         "bar": {"type": "number"}, "name": {"type": "string"},
                         "on": {"type": ["boolean", "string"]}, "bars": {"type": "integer"},
@@ -77,6 +82,11 @@ def _load_env():
                 os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
 
+def build_system(known_shortcuts, state):
+    # str.replace, not str.format: the prompt contains literal braces like {start_bar,end_bar}
+    return SYSTEM.replace("{known}", json.dumps(known_shortcuts)).replace("{state}", json.dumps(state))
+
+
 def ask(text, state, known_shortcuts, model="claude-haiku-5-5"):
     """Returns the list of action dicts from Claude."""
     _load_env()
@@ -88,7 +98,7 @@ def ask(text, state, known_shortcuts, model="claude-haiku-5-5"):
     resp = client.messages.create(
         model=model,
         max_tokens=1024,
-        system=SYSTEM.format(known=json.dumps(known_shortcuts), state=json.dumps(state)),
+        system=build_system(known_shortcuts, state),
         tools=[TOOL],
         tool_choice={"type": "tool", "name": "perform_actions"},
         messages=[{"role": "user", "content": text}],
