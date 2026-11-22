@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+
+- Auto-update: the running service checks GitHub releases (every 6 h, or tray > Check for updates now), installs newer releases over the folder, restarts, and rolls back if the new version fails to start. Tray toggle "Auto-update". Private repo needs `GITHUB_TOKEN` in `.env`.
+
 ## 1.2.0
 
 - "That was wrong" feedback (pad K3, tray menu): saves heard text, actions, Live state, log tail and a screenshot to `data/feedback/`; the phrase is routed to Claude with a hint next time.

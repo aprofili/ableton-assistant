@@ -276,6 +276,36 @@ class PadTests(unittest.TestCase):
             osc.close()
             live.close()
 
+    def test_updater_applies_zip_and_protects_user_files(self):
+        import io
+        import zipfile
+        from assistant import updater
+        root = tempfile.mkdtemp()
+        try:
+            os.makedirs(os.path.join(root, "assistant"))
+            for rel, txt in (("assistant/a.py", "old"), ("config.json", "mine"), ("requirements.txt", "x"),
+                             ("data/learned_shortcuts.json", "learned")):
+                os.makedirs(os.path.join(root, os.path.dirname(rel)), exist_ok=True)
+                open(os.path.join(root, rel), "w").write(txt)
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w") as z:
+                z.writestr("aprofili-ableton-assistant-abc/assistant/a.py", "new")
+                z.writestr("aprofili-ableton-assistant-abc/config.json", "OVERWRITE")
+                z.writestr("aprofili-ableton-assistant-abc/data/learned_shortcuts.json", "OVERWRITE")
+                z.writestr("aprofili-ableton-assistant-abc/requirements.txt", "y")
+                z.writestr("aprofili-ableton-assistant-abc/new.txt", "n")
+            bk = os.path.join(root, ".update_backup")
+            changed = updater.apply_zip(buf.getvalue(), root, bk)
+            self.assertTrue(changed)
+            self.assertEqual(open(os.path.join(root, "assistant/a.py")).read(), "new")
+            self.assertEqual(open(os.path.join(root, "config.json")).read(), "mine")
+            self.assertEqual(open(os.path.join(root, "data/learned_shortcuts.json")).read(), "learned")
+            self.assertEqual(open(os.path.join(root, "new.txt")).read(), "n")
+            self.assertEqual(open(os.path.join(bk, "assistant/a.py")).read(), "old")
+            self.assertTrue(updater._vt("v1.10.0") > updater._vt("1.9.9"))
+        finally:
+            shutil.rmtree(root)
+
     def test_play_from_loop_start(self):
         sc = shortcuts_mod.Shortcuts()
         self.assertEqual(router.route("play from the start of my loop", sc)[0], [{"type": "goto_loop_start"}, {"type": "play"}])

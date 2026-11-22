@@ -21,6 +21,10 @@ Per-machine and never in the repo: `.venv`, `config.json` (mic, trigger), `.env`
 
 ## Update
 
+Automatic: the running service checks GitHub releases every 6 h (tray > Auto-update / Check for updates now), installs a newer release over this folder (keeps `.venv`, `config.json`, `.env`, logs, learned shortcuts, feedback), re-runs pip if requirements changed, restarts, and rolls back if the new version crashes on start. Needs the repo to be public, or `GITHUB_TOKEN=<fine-grained read-only token>` in `.env`.
+
+Manual:
+
 Extract the new release zip over the existing folder (your `.venv`, `config.json`, `.env` are untouched), then double-click `install.bat` again and use tray > Restart assistant.
 
 ## What runs locally (no API call)

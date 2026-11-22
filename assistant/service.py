@@ -44,6 +44,7 @@ class Assistant:
         self.overlay.level_fn = lambda: self.rec.level if self.rec else 0.0
         self._api_active = False
         self.last = None
+        self.update_status = ""
         self.pad = PadController(cfg, self)
         self.padmap = PadMap(self.pad, cfg)
 
@@ -96,6 +97,9 @@ class Assistant:
                 self.trigger.add_combo(self.pad.voice_key)
                 self.pad.start()
             self.ready = True
+            from . import updater
+            updater.confirm()
+            threading.Thread(target=self._update_loop, daemon=True, name="updater").start()
             self.set_state("idle")
             log.info("Ready. Trigger: %s (%s). Mic: %s.", t["keys"], t["mode"], self.cfg["input_device"] or "system default")
             self.trigger.run()
@@ -171,6 +175,48 @@ class Assistant:
         elif kind == "api_done":
             self._api_active = False
             self.overlay.api_done(True, info)
+
+    # ---- updates -------------------------------------------------------
+    def _update_loop(self):
+        time.sleep(45)
+        while True:
+            if self.cfg.get("updates", {}).get("auto", True):
+                self.check_updates(auto=True)
+            time.sleep(max(1, self.cfg.get("updates", {}).get("check_hours", 6)) * 3600)
+
+    def check_updates(self, auto=False):
+        from . import updater
+        try:
+            found = updater.check()
+        except Exception as e:
+            log.info("Update check failed: %s", e)
+            self.update_status = "Update check failed"
+            if not auto:
+                self._notify(f"Update check failed: {e}")
+            return
+        if not found:
+            self.update_status = "Up to date"
+            if not auto:
+                self._notify("Already up to date.")
+            return
+        tag, url = found
+        self.update_status = f"Updating to {tag}"
+        # wait until no command is in flight and nothing is being recorded
+        for _ in range(120):
+            if not self._recording and not self.busy.locked():
+                break
+            time.sleep(1)
+        try:
+            with self.busy:
+                updater.install(tag, url)
+        except Exception as e:
+            log.info("Update to %s failed: %s", tag, e)
+            self.update_status = "Update failed"
+            self._notify(f"Update to {tag} failed: {e}")
+            return
+        self._notify(f"Updated to {tag}. Restarting...")
+        time.sleep(1.5)
+        updater.restart()
 
     def mark_wrong(self):
         """Save feedback on the last voice command (what was heard, what ran, state, log, screenshot)."""
