@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.5
+- Fix the remaining one-time pad map flicker after a press: the action's own state query returned the old value through the push path; pushes are now ignored during the post-press hold and confirmed at 0.75 s.
+
 ## 1.7.4
 - After dictating to Claude, the chat is kept scrolled to the bottom while the reply streams (stops after `pad.claude_follow_seconds`=240, when you move the mouse, or when another window takes focus; `pad.claude_follow_bottom` to disable).
 
