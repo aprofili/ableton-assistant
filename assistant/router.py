@@ -55,8 +55,46 @@ def _title(s):
     return s.strip().title()
 
 
+_UP = r"turn up|raise|increase|boost|bring up|louder|more volume|up"
+_DOWN = r"turn down|lower|reduce|decrease|bring down|quieter|softer|less volume|down"
+
+
+def _match_audio(seg):
+    if re.search(r"\bclipping\b|\bclip\b|\bcheck (?:the )?levels\b|\bcheck (?:for )?peaks\b", seg):
+        return [{"type": "check_levels", "seconds": 3}]
+    m = re.fullmatch(r"(?:turn|bring) (?:it|this|that) (up|down)(?: by (\d+(?:\.\d+)?) ?(?:d b|db|decibels?))?", seg)
+    if m:
+        db = float(m.group(2)) if m.group(2) else 2.0
+        return [{"type": "track_volume", "track": "selected", "db": db if m.group(1) == "up" else -db}]
+    m = re.fullmatch(r"(" + _UP + "|" + _DOWN + r")(?: the)?(?: volume| level| gain)?(?: (?:on|of|for))?(?: the)?"
+                     r"(?: (.+?))?(?: by (\d+(?:\.\d+)?) ?(?:d b|db|decibels?))?", seg)
+    if m:
+        up = re.fullmatch(_UP, m.group(1)) is not None
+        track = (m.group(2) or "selected").replace(" track", "").strip() or "selected"
+        track = re.sub(r"^(?:a |the |my )", "", track)
+        if track in ("it", "this", "that", "selected", "current", "this one"):
+            track = "selected"
+        db = float(m.group(3)) if m.group(3) else 2.0
+        return [{"type": "track_volume", "track": track, "db": db if up else -db}]
+    if re.search(r"\b(?:create|make|add|new|set up)\b", seg) and re.search(r"\btrack\b", seg) and \
+            (re.search(r"\baudio\b|\brode ?caster\b|\brode\b", seg) or re.search(r"\b(?:mic|channel|input)\s*\d+", seg)):
+        ch = re.search(r"\b(?:mic|channel|input|ch)\s*(\d+)", seg)
+        nm = re.search(r"\b(?:called|named|name|for (?!the\b|a\b|my\b|rode\b))\s*(.+?)(?:\s+(?:from|on|with|using|input|channel|mic|rode)\b.*)?$", seg)
+        name = _title(nm.group(1)) if nm and nm.group(1).strip() else None
+        a = {"type": "new_input_track"}
+        if name:
+            a["name"] = name
+        if ch:
+            a["channel"] = ch.group(1)
+        return [a]
+    return None
+
+
 def _match(seg):
     """Match one normalized segment. Returns list of actions or None."""
+    got = _match_audio(seg)
+    if got:
+        return got
     m = re.search(r"\b(?:make|add|create|insert|put|drop)\b.*?\b" + _NOUN + _NAMED +
                   r"\s*(.+?)\s+(?:at|on) (?:the )?(?:bar )?(\d+)\b", seg)
     if m and m.group(1).strip():

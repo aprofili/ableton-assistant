@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0
+
+- Voice: track volume +/- dB by name or selected track, clipping check (popup with offending tracks), new armed audio track with external input channel (RØDECaster workflow). See `docs/RODE.md`.
+- Claude prompt knows the new actions (track_volume, check_levels, new_input_track).
+
 ## 1.3.0
 
 - Auto-update: the running service checks GitHub releases (every 6 h, or tray > Check for updates now), installs newer releases over the folder, restarts, and rolls back if the new version fails to start. Tray toggle "Auto-update". Private repo needs `GITHUB_TOKEN` in `.env`.

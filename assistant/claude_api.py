@@ -17,6 +17,9 @@ Action types:
   goto_bar{bar}  goto_cue{name}  next_cue  prev_cue  set_count_in{bars: 0|1|2|4}  set_tempo{bpm}
   add_section{bar,name}  create a locator at a bar and name it (renames it if one already exists there)
   name_section{name}  name the section the playhead is currently in (creates a locator there if none precedes it)
+  track_volume{track, db}  change a track's fader by db (+/-); track = name from state or "selected"
+  check_levels{seconds}  watch meters while playing and report clipping (shown on screen)
+  new_input_track{name, channel}  new armed audio track whose input is external channel N (RØDECaster inputs)
   key{keys, learn_phrases}  one Ableton keyboard shortcut, e.g. "ctrl+shift+t", "f9", "tab"
   osc{address,args}  raw AbletonOSC call if nothing above fits (e.g. /live/song/cue_point/add_or_delete,
                      /live/song/cue_point/set/name [index, name])
@@ -54,14 +57,16 @@ TOOL = {
                         "type": {"type": "string", "enum": [
                             "set_loop", "loop", "metronome", "play", "continue", "stop", "undo", "redo",
                             "goto_bar", "goto_cue", "next_cue", "prev_cue", "set_count_in", "set_tempo",
-                            "add_section", "name_section", "key", "osc", "wait"]},
+                            "add_section", "name_section", "track_volume", "check_levels", "new_input_track",
+                            "key", "osc", "wait"]},
                         "start_bar": {"type": "number"}, "end_bar": {"type": "number"},
                         "bar": {"type": "number"}, "name": {"type": "string"},
                         "on": {"type": ["boolean", "string"]}, "bars": {"type": "integer"},
                         "bpm": {"type": "number"}, "keys": {"type": "string"},
                         "learn_phrases": {"type": "array", "items": {"type": "string"}},
                         "address": {"type": "string"}, "args": {"type": "array"},
-                        "seconds": {"type": "number"},
+                        "seconds": {"type": "number"}, "track": {"type": "string"}, "db": {"type": "number"},
+                        "channel": {"type": "string"},
                     },
                     "required": ["type"],
                 },

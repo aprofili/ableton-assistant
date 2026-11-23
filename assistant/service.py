@@ -77,6 +77,7 @@ class Assistant:
             except Exception:
                 keys = None
             self.actions = Actions(self.osc, self.cfg, keys)
+            self.actions.report = lambda msg, ok=True: self.overlay.api_done(ok, msg)
             try:
                 device = resolve_device(self.cfg["input_device"])
             except RuntimeError as e:

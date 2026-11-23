@@ -63,6 +63,7 @@ class Actions:
         self.osc = osc
         self.cfg = config
         self.keys = keys  # KeySender or None
+        self.report = lambda msg, ok=True: None  # set by the service: shows a popup
 
     # ---- helpers -------------------------------------------------------
     def beats_per_bar(self):
@@ -218,6 +219,85 @@ class Actions:
 
     def a_redo(self, a):
         self.osc.send("/live/song/redo")
+
+    # ---- tracks / levels (RØDECaster workflow) -------------------------
+    def _track_names(self):
+        return list(self.osc.query("/live/song/get/track_names"))
+
+    def _track_index(self, ref):
+        """ref: track name (loose match), 'selected'/None, or an int index."""
+        if isinstance(ref, int):
+            return ref
+        if ref in (None, "", "selected", "this", "it", "this track", "current"):
+            return int(self.osc.query("/live/view/get/selected_track")[0])
+        names = self._track_names()
+        want = str(ref).strip().lower()
+        for i, n in enumerate(names):
+            if n.lower() == want:
+                return i
+        for i, n in enumerate(names):
+            if want in n.lower() or n.lower() in want:
+                return i
+        raise ValueError(f"No track matching '{ref}'")
+
+    def a_track_volume(self, a):
+        """Raise/lower a track's fader by db (near 0 dB, one dB is ~0.025 of the fader range)."""
+        idx = self._track_index(a.get("track"))
+        cur = float(self.osc.query("/live/track/get/volume", idx)[-1])
+        new = max(0.0, min(1.0, cur + float(a.get("db", 2)) * 0.025))
+        self.osc.send("/live/track/set/volume", idx, new)
+
+    def a_check_levels(self, a):
+        """Sample every track's output meter while playing; report anything at/over the clip threshold."""
+        secs = min(float(a.get("seconds", 3)), 15.0)
+        thr = float((self.cfg.get("rode") or {}).get("clip_threshold", 0.85))  # fader scale: 0.85 ~ 0 dBFS
+        if not bool(self.osc.query("/live/song/get/is_playing")[0]):
+            self.report("Levels: nothing is playing", False)
+            return
+        names = self._track_names()
+        peaks = {n: 0.0 for n in names + ["Master"]}
+        end = time.time() + secs
+        while time.time() < end:
+            for i, n in enumerate(names):
+                peaks[n] = max(peaks[n], float(self.osc.query("/live/track/get/output_meter_level", i, timeout=0.5)[-1]))
+            peaks["Master"] = max(peaks["Master"], float(self.osc.query("/live/master/get/output_meter_level", timeout=0.5)[-1]))
+            time.sleep(0.05)
+        hot = [n for n, p in peaks.items() if p >= thr]
+        if hot:
+            self.report("Clipping: " + ", ".join(hot), False)
+        else:
+            top = max(peaks, key=peaks.get)
+            self.report(f"No clipping (loudest: {top})", True)
+
+    def a_new_input_track(self, a):
+        """Create an armed audio track, optionally named, with its input set to an external channel."""
+        self.osc.send("/live/song/create_audio_track", -1)
+        time.sleep(0.3)
+        idx = int(self.osc.query("/live/song/get/num_tracks")[0]) - 1
+        if a.get("name"):
+            self.osc.send("/live/track/set/name", idx, str(a["name"]))
+        self.osc.send("/live/track/set/arm", idx, 1)
+        self.osc.send("/live/view/set/selected_track", idx)
+        rc = self.cfg.get("rode") or {}
+        types = [str(t) for t in self.osc.query("/live/track/get/available_input_routing_types", idx)[1:]]
+        want = rc.get("input_type", "Ext. In")
+        if want in types:
+            self.osc.send("/live/track/set/input_routing_type", idx, want)
+            time.sleep(0.15)
+        ch = a.get("channel")
+        if ch is None:
+            return
+        chans = [str(c) for c in self.osc.query("/live/track/get/available_input_routing_channels", idx)[1:]]
+        mapped = (rc.get("channels") or {}).get(str(ch))
+        pick = mapped if mapped in chans else None
+        if pick is None:
+            import re as _re
+            pick = next((c for c in chans if c == str(ch)), None) or \
+                next((c for c in chans if _re.search(r"(?<!\d)" + _re.escape(str(ch)) + r"(?!\d)", c)), None)
+        if pick is None:
+            raise ValueError(f"Input channel {ch} not found. Live offers: {chans}. "
+                             "Map it in config.json: rode.channels {\"%s\": \"<name>\"}" % ch)
+        self.osc.send("/live/track/set/input_routing_channel", idx, pick)
 
     def a_osc(self, a):
         self.osc.send(a["address"], *a.get("args", []))
