@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.9.1
+- K5 = mute selected track, MOD+K5 = solo selected track (popup shows the result). Capture MIDI removed from the pad (still a voice command).
+
 ## 1.9.0
 - Hold + dial on more buttons (MOD while holding = bigger/finer step): K2 tempo (1 / 5 BPM), K9 playhead (bar / beat), K4 select track, K5 selected-track volume, K7 selected-track pan, K6 move loop, K8 loop start, K10 loop end (bar / beat). A tap still does the button's normal action, on release.
 - Pad map shows hold wording only while the button is held (like MOD); the dial labels change too.
