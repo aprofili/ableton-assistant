@@ -34,6 +34,15 @@ Immediate effect: that phrase is remembered as wrong. Next time you say it, the 
 ## Hold + dial
 Hold a button and turn the dial to change something; a plain tap still runs the button's normal action (on release).
 
-| Hold | Dial | Notes |
+| Hold | Dial | MOD also held |
 |---|---|---|
-| K2 (Tap tempo) | Tempo ±1 BPM per click | popup shows the tempo; a tap (no dial) taps tempo on release |
+| K2 | Tempo +-1 BPM | +-5 BPM |
+| K9 | Playhead by bar | by beat |
+| K4 | Select track | same |
+| K5 | Selected track volume (2%) | 10% |
+| K7 | Selected track pan (5%) | 25% |
+| K6 | Move whole loop by bar | by beat |
+| K8 | Loop start by bar | by beat |
+| K10 | Loop end by bar | by beat |
+
+Hold the button first, then (optionally) MOD. A tap with no dial turn does the button's normal action on release.
