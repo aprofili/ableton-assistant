@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.10
+- Reverted default model to small.en (distil-small.en was no faster and less accurate on short commands); loop phrases added to the Whisper prompt.
+- Corner popup now also appears for commands handled locally (what was done + what was heard) and for 'Not understood'.
+
 ## 1.7.9
 - Faster transcription: default model distil-small.en (falls back to small.en if it can't load), CPU threads = physical cores (`whisper.cpu_threads`).
 

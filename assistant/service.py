@@ -231,6 +231,7 @@ class Assistant:
                     self.notify(f"“{text}”")
                 else:
                     self.notify(f"Not understood: “{text}”", "error")
+                    self.overlay.result(False, "Not understood", f"“{text}”")
             except Exception as e:
                 log.info("ERROR: %s", e)
                 if self._api_active:
@@ -248,6 +249,8 @@ class Assistant:
         elif kind == "api_done":
             self._api_active = False
             self.overlay.api_done(True, info)
+        elif kind == "local_done":
+            self.overlay.result(True, info[0], f"“{info[1]}”")
 
     # ---- updates -------------------------------------------------------
     def _reload_watch(self):

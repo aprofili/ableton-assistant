@@ -1,7 +1,7 @@
 {
   "trigger": {"keys": "scroll_lock", "mode": "hold"},
   "input_device": null,
-  "whisper": {"model": "distil-small.en", "device": "cpu", "compute_type": "int8", "cpu_threads": 0},
+  "whisper": {"model": "small.en", "device": "cpu", "compute_type": "int8", "cpu_threads": 0},
   "osc": {"host": "127.0.0.1", "send_port": 11000, "recv_port": 11001},
   "bar_range_inclusive": false,
   "claude": {"enabled": true, "model": "claude-haiku-5-5"},

@@ -78,6 +78,10 @@ class Overlay:
     def api_done(self, ok, detail=""):
         self._put(("api_done", ok, detail))
 
+    def result(self, ok, title, sub=""):
+        """Popup for a command that ran locally (title = what was done, sub = what was heard)."""
+        self._put(("result", ok, title, sub))
+
     def hide(self):
         self._put(("hide",))
 
@@ -133,8 +137,13 @@ class Overlay:
         elif kind == "api_start":
             self.heard = msg[1]
             self._show("api_working")
+        elif kind == "result":
+            self.result_ok, self.title_override, self.detail = msg[1], msg[2], msg[3]
+            self._show("api_done")
+            self.hide_at = time.time() + (2.6 if msg[1] else 4.0)
         elif kind == "api_done":
             self.result_ok, self.detail = msg[1], msg[2]
+            self.title_override = None
             self._show("api_done")
             self.hide_at = time.time() + (2.6 if msg[1] else 4.0)
         elif kind == "hide":
@@ -268,7 +277,7 @@ class Overlay:
             else:
                 c.create_line(cx - 6 * s, cy - 6 * s, cx + 6 * s, cy + 6 * s, fill=BG, width=int(3.5 * s), capstyle="round")
                 c.create_line(cx - 6 * s, cy + 6 * s, cx + 6 * s, cy - 6 * s, fill=BG, width=int(3.5 * s), capstyle="round")
-            title = "Claude • done" if self.result_ok else "Claude • failed"
+            title = getattr(self, "title_override", None) or ("Claude • done" if self.result_ok else "Claude • failed")
             c.create_text(88 * s, H * 0.38, text=title, anchor="w", fill=FG, font=title_font)
             c.create_text(88 * s, H * 0.64, text=self._clip(self.detail, 44), anchor="w", fill=MUTED, font=sub_font)
 
