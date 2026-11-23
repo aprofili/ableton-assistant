@@ -329,35 +329,89 @@ class PadController:
                         continue
                 if a is None or not acts:
                     continue
+                self._optimistic(acts)
                 a.run(acts)
-                self._refresh()
+                threading.Timer(0.25, self._safe_refresh).start()  # confirm against Live
             except Exception as e:
                 log.info("Pad action failed: %s", e)
+                self._safe_refresh()
 
-    # ---- live state polling
+    # ---- live state: pushed by Live (start_listen) for instant updates, polled slowly as a safety net
+    _LISTEN = {"is_playing": "playing", "metronome": "metronome", "loop": "loop", "record_mode": "record",
+               "session_record": "session_record", "count_in_duration": "count_in",
+               "punch_in": "punch_in", "punch_out": "punch_out"}
+
+    def _push(self, addr, args):
+        if addr.startswith("/live/song/get/") and args:
+            key = self._LISTEN.get(addr.rsplit("/", 1)[1])
+            if key:
+                self.live[key] = bool(args[0])
+                self.live_ok = True
+
+    def _optimistic(self, acts):
+        """Flip the displayed state right away; the real value from Live follows within a few ms."""
+        for a in acts:
+            t = a.get("type")
+            if t in ("playstop", "playpause"):
+                self.live["playing"] = not self.live["playing"]
+            elif t == "loop" and a.get("on") == "toggle":
+                self.live["loop"] = not self.live["loop"]
+            elif t == "metronome" and a.get("on") == "toggle":
+                self.live["metronome"] = not self.live["metronome"]
+            elif t == "record" and a.get("on") == "toggle":
+                self.live["record"] = not self.live["record"]
+            elif t == "session_record" and a.get("on") == "toggle":
+                self.live["session_record"] = not self.live["session_record"]
+            elif t == "count_in_toggle":
+                self.live["count_in"] = not self.live["count_in"]
+            elif t == "punch_cycle":
+                nxt = {(0, 0): (1, 0), (1, 0): (1, 1), (1, 1): (0, 1), (0, 1): (0, 0)}[
+                    (int(self.live["punch_in"]), int(self.live["punch_out"]))]
+                self.live["punch_in"], self.live["punch_out"] = bool(nxt[0]), bool(nxt[1])
+
+    _unavailable = None
+
+    def _safe_refresh(self):
+        try:
+            self._refresh()
+        except Exception:
+            pass
+
     def _refresh(self):
         osc = self.assistant.osc
         if osc is None:
             return
-        def q(addr, default=False):
+        if self._unavailable is None:
+            self._unavailable = set()
+
+        def q(prop, key):
+            addr = "/live/song/get/" + prop
+            if prop in self._unavailable:
+                return self.live[key]
             try:
-                return bool(osc.query(addr, timeout=0.5)[0])
+                return bool(osc.query(addr, timeout=0.4)[0])
             except TimeoutError:
-                if addr.endswith("is_playing"):
+                if prop == "is_playing":
                     raise
-                return default  # property unavailable (e.g. count-in patch missing)
-        self.live = {"playing": q("/live/song/get/is_playing"), "metronome": q("/live/song/get/metronome"),
-                     "loop": q("/live/song/get/loop"), "record": q("/live/song/get/record_mode"),
-                     "session_record": q("/live/song/get/session_record"),
-                     "count_in": q("/live/song/get/count_in_duration"),
-                     "punch_in": q("/live/song/get/punch_in"), "punch_out": q("/live/song/get/punch_out")}
+                self._unavailable.add(prop)  # e.g. count-in patch missing: don't wait on it again
+                return False
+        self.live = {key: q(prop, key) for prop, key in self._LISTEN.items()}
         self.live_ok = True
 
     def _poll(self):
+        subscribed, last_sub = None, 0.0
         while True:
             try:
+                osc = self.assistant.osc
+                if osc is not None:
+                    if subscribed is not osc:
+                        osc.listeners.append(self._push)
+                        subscribed = osc
+                    if time.time() - last_sub > 10:  # idempotent; survives Live reloading its scripts
+                        osc.subscribe([p for p in self._LISTEN if p not in (self._unavailable or ())])
+                        last_sub = time.time()
                 self._refresh()
-                time.sleep(0.5)
+                time.sleep(1.5)
             except Exception:
                 self.live_ok = False
                 time.sleep(2.0)

@@ -60,6 +60,8 @@ def ableton_in_front():
 
 
 def focus_ableton():
+    """Bring Live's main window to the front (no-op if it already is). Avoids the Alt-tap trick unless
+    needed: a lone Alt press/release activates Live's menu bar, which swallowed the next key (Tab)."""
     if sys.platform != "win32":
         return False
     import ctypes
@@ -70,10 +72,21 @@ def focus_ableton():
         return False
     if user32.IsIconic(hwnd):
         user32.ShowWindow(hwnd, 9)  # SW_RESTORE
-    # Alt tap lets SetForegroundWindow succeed when we aren't the foreground process
-    user32.keybd_event(0x12, 0, 0, 0)
-    user32.keybd_event(0x12, 0, 2, 0)
+    if user32.GetForegroundWindow() == hwnd:
+        return True
+    fg = user32.GetForegroundWindow()
+    me = ctypes.windll.kernel32.GetCurrentThreadId()
+    their = user32.GetWindowThreadProcessId(fg, None) if fg else 0
+    if their and their != me:
+        user32.AttachThreadInput(me, their, True)
+    user32.BringWindowToTop(hwnd)
     user32.SetForegroundWindow(hwnd)
+    if their and their != me:
+        user32.AttachThreadInput(me, their, False)
+    if user32.GetForegroundWindow() != hwnd:  # fallback: Alt tap, then close the menu it opens
+        user32.keybd_event(0x12, 0, 0, 0)
+        user32.keybd_event(0x12, 0, 2, 0)
+        user32.SetForegroundWindow(hwnd)
     time.sleep(0.08)
     return True
 

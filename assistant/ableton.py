@@ -17,12 +17,18 @@ class AbletonOSC:
         self._replies = {}
         self._events = {}
         self._qlock = threading.RLock()
+        self.listeners = []  # callables(addr, args) for every incoming message (listen-pushed updates)
         disp = Dispatcher()
         disp.set_default_handler(self._on_reply)
         self.server = ThreadingOSCUDPServer((host, recv_port), disp)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def _on_reply(self, addr, *args):
+        for fn in self.listeners:
+            try:
+                fn(addr, args)
+            except Exception:
+                pass
         self._replies[addr] = args
         ev = self._events.get(addr)
         if ev:
@@ -43,6 +49,11 @@ class AbletonOSC:
                     "Control Surface in Live's Preferences > Link, Tempo & MIDI?"
                 )
             return self._replies[addr]
+
+    def subscribe(self, props):
+        """Ask Live to push changes: props like ["is_playing", "loop"] (AbletonOSC start_listen)."""
+        for p in props:
+            self.send("/live/song/start_listen/" + p)
 
     def ping(self):
         try:

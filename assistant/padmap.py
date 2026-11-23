@@ -125,20 +125,24 @@ class PadMap:
             log.exception("Pad map show failed")
         try:
             if self.root.state() != "withdrawn":
-                self._draw()
+                snap = self.pad.snapshot()
+                key = (repr(sorted(snap.items())), self.canvas.winfo_width(), self.canvas.winfo_height())
+                if key != getattr(self, "_last_key", None):  # redraw only on change
+                    self._last_key = key
+                    self._draw(snap)
         except Exception:
             log.exception("Pad map draw failed")
-        self.root.after(100, self._tick)
+        self.root.after(30, self._tick)
 
     # ---- drawing
-    def _draw(self):
+    def _draw(self, snap=None):
         c = self.canvas
         w, h = max(c.winfo_width(), 200), max(c.winfo_height(), 150)
         s = min(w / (W0 + 30), (h - 40) / (H0 - 10)) * 0.92
         ox, oy = (w - W0 * s) / 2, (h - 20 - (H0 - 40) * s) / 2 - 30 * s
         X = lambda v: ox + v * s
         Y = lambda v: oy + v * s
-        snap = self.pad.snapshot()
+        snap = snap or self.pad.snapshot()
         c.delete("all")
         x0, y0, x1, y1 = BODY_RECT
         self._rrect(X(x0), Y(y0), X(x1), Y(y1), s * 14, BODY)

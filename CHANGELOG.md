@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1
+- Fix: K7 view switch (Tab) did nothing because focusing Live tapped Alt, which opened Live's menu bar and swallowed the key. Focus is now a no-op when Live is already in front and no longer taps Alt first.
+- Pad map reacts instantly: Live pushes state changes (AbletonOSC listeners), the display flips optimistically on press, unavailable properties no longer stall polling, redraw only on change.
+
 ## 1.5.0
 - Learning: when Claude solves a command, the solved example is saved as a template with number/name slots (`data/learned_macros.json`) and runs locally next time ("create a section marker at bar 13 and call it drum loop" -> any bar, any name). "That was wrong" deletes the macro behind a command. Section creation with "and call it ..." is also built into the local router. Claude API timing is logged.
 - Pad: any button press brings Live to the front first if it isn't (`pad.focus_mode`: `focus_and_act` default, or `focus_only`).
