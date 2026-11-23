@@ -96,6 +96,7 @@ class TrayApp:
     def mic_items(self):
         from .audio import list_input_devices
         cur = self.cfg.get("input_device")
+        idle = not getattr(self.asst, "_recording", False)  # rescan hardware on every menu open (safe only when idle)
 
         def picker(spec):
             def pick(icon, item):
@@ -108,7 +109,7 @@ class TrayApp:
 
         yield MenuItem("System default", picker(None), checked=is_checked(None), radio=True)
         seen = set()
-        for d in list_input_devices():
+        for d in list_input_devices(refresh=idle):
             if d["hostapi"] != "MME" or d["name"] == "Microsoft Sound Mapper - Input" or d["name"] in seen:
                 continue
             seen.add(d["name"])

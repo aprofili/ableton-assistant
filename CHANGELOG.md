@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.8
+- Microphone menu rescans audio hardware each time it opens, so newly plugged mics appear; the saved mic is re-resolved by name on every recording, and an unplugged mic falls back to the system default.
+
 ## 1.10.7
 - Voice: arm / disarm / de-arm / unarm the selected track for recording.
 
