@@ -65,7 +65,7 @@ def label_for(pid, st):
     if pid == "b6":
         return ("Loop\nON" if st.get("loop") else "Loop\nOFF"), bool(st.get("loop"))
     if pid == "b7":
-        return "Hold:\nscroll up/down", bool(st.get("vmod"))
+        return "Hold:\nscroll\nup/down", bool(st.get("vmod"))
     if pid == "b8":
         return "Previous\nsection", False
     if pid == "b9":
@@ -73,7 +73,7 @@ def label_for(pid, st):
     if pid == "b10":
         return "Next\nsection", False
     if pid == "dial_press":
-        return "Go to\nstart", False
+        return "", False
     if pid == "dial_cw":
         return ("Scroll down" if st.get("vmod") else "Scroll right"), False
     if pid == "dial_ccw":
@@ -139,7 +139,17 @@ class Scroller:
         return True
 
     @staticmethod
+    def _release_modifiers():
+        """The pad's keys arrive as Ctrl+Alt+Shift+Fn; Live reads Alt+wheel as track height and
+        Ctrl+wheel as zoom. Lift those modifiers so the wheel event is a plain scroll."""
+        u = ctypes.windll.user32
+        for vk in (0x11, 0x12, 0x10, 0xA2, 0xA3, 0xA4, 0xA5, 0xA0, 0xA1):  # ctrl, alt, shift (+L/R)
+            if u.GetAsyncKeyState(vk) & 0x8000:
+                u.keybd_event(vk, 0, 0x0002, 0)  # KEYEVENTF_KEYUP
+
+    @staticmethod
     def _send(amount, vertical):
+        Scroller._release_modifiers()
         class MOUSEINPUT(ctypes.Structure):
             _fields_ = [("dx", ctypes.c_long), ("dy", ctypes.c_long), ("mouseData", ctypes.c_ulong),
                         ("dwFlags", ctypes.c_ulong), ("time", ctypes.c_ulong),

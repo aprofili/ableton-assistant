@@ -2,6 +2,8 @@
 
 ## 1.4.1
 - Pad keys are now Ctrl+Alt+Shift+F1..F12 (single-key remaps still work); modifier-aware matching. Dial press is not programmable on the ACK05 driver.
+- Fix: pad modifiers no longer leak into wheel scrolling (Alt+wheel resized tracks).
+- Pad map redrawn to match the ACK05 shape.
 
 ## 1.4.0
 
