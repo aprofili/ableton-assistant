@@ -127,7 +127,10 @@ class HidTap:
         wc.lpszClassName = "AbletonAssistantHid"
         u.RegisterClassW(ctypes.byref(wc))
         u.CreateWindowExW.restype = wt.HWND
-        hwnd = u.CreateWindowExW(0, wc.lpszClassName, "hid", 0, 0, 0, 0, 0, HWND_MESSAGE, None, wc.hInstance, None)
+        u.CreateWindowExW.argtypes = [wt.DWORD, wt.LPCWSTR, wt.LPCWSTR, wt.DWORD, ctypes.c_int, ctypes.c_int,
+                                      ctypes.c_int, ctypes.c_int, wt.HWND, wt.HMENU, wt.HINSTANCE, wt.LPVOID]
+        hwnd = u.CreateWindowExW(0, wc.lpszClassName, "hid", 0, 0, 0, 0, 0, wt.HWND(HWND_MESSAGE), None,
+                                 wc.hInstance, None)
         pages = self._xppen_pages()
         if not pages:
             log.info("HID tap: no XP-Pen HID interface found")
