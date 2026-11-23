@@ -35,9 +35,9 @@ MOD = "b3"  # hold: modifier for every other input
 
 # id -> actions. K1 is voice (mod: "that was wrong"), K3 is the modifier itself.
 ACTIONS = {
-    "b2": [{"type": "tap_tempo"}],
+    "b2": [{"type": "metronome", "on": "toggle"}],
     "b4": [{"type": "record", "on": "toggle"}],
-    "b5": [{"type": "track_toggle", "prop": "mute"}],
+    "b5": [{"type": "track_toggle", "prop": "solo"}],
     "b6": [{"type": "loop", "on": "toggle"}],
     "b7": [{"type": "key", "keys": "tab"}],  # Live: toggle Session / Arrangement view
     "b8": [{"type": "prev_cue"}],
@@ -47,9 +47,9 @@ ACTIONS = {
 
 # with MOD held
 MOD_ACTIONS = {
-    "b2": [{"type": "metronome", "on": "toggle"}],
+    "b2": [{"type": "tap_tempo"}],
     "b4": [{"type": "session_record", "on": "toggle"}],
-    "b5": [{"type": "track_toggle", "prop": "solo"}],
+    "b5": [{"type": "track_toggle", "prop": "mute"}],
     "b6": [{"type": "punch_cycle"}],
     "b7": [{"type": "key", "keys": "shift+tab"}],  # Live: toggle Clip / Device detail view
     "b8": [{"type": "undo"}],
@@ -98,7 +98,7 @@ def icon_for(pid, st):
     if pid == "b1":
         return ("wrong" if mod else "mic"), ""
     if pid == "b2":
-        return ("metronome" if mod else "tap"), ""
+        return ("tap" if mod else "metronome"), ""
     if pid == "b3":
         return "mod", ""
     if pid == "b4":
@@ -106,7 +106,7 @@ def icon_for(pid, st):
             return "rec_session", ""
         return ("stop" if st.get("record") else "rec"), ""
     if pid == "b5":
-        return ("solo" if mod else "mute"), ""
+        return ("mute" if mod else "solo"), ""
     if pid == "b6":
         return ("punch" if mod else "loop"), ""
     if pid == "b7":
@@ -143,8 +143,8 @@ def label_for(pid, st):
         return ("Listening" if st.get("listening") else "Voice"), bool(st.get("listening"))
     if pid == "b2":
         if mod:
-            return ("Metronome\nON" if st.get("metronome") else "Metronome\nOFF"), bool(st.get("metronome"))
-        return "Tap\ntempo", False
+            return "Tap\ntempo", False
+        return ("Metronome\nON" if st.get("metronome") else "Metronome\nOFF"), bool(st.get("metronome"))
     if pid == "b3":
         return "MOD", mod
     if pid == "b4":
@@ -152,7 +152,7 @@ def label_for(pid, st):
             return ("Stop session\nrecord" if st.get("session_record") else "Session\nrecord"), bool(st.get("session_record"))
         return ("Stop\nrecording" if st.get("record") else "Record"), bool(st.get("record"))
     if pid == "b5":
-        return ("Solo\ntrack" if mod else "Mute\ntrack"), False
+        return ("Mute\ntrack" if mod else "Solo\ntrack"), False
     if pid == "b6":
         if mod:
             pi, po = bool(st.get("punch_in")), bool(st.get("punch_out"))

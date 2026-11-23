@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.3
+- K2 = metronome toggle, MOD+K2 = tap tempo. K5 = solo selected track, MOD+K5 = mute selected track.
+
 ## 1.10.2
 - Hold+dial now needs the button held for 1 s (`pad.hold_delay`); letting go sooner is a normal tap. Hold labels/icons appear only once it kicks in; no tap on release after a hold. MOD and voice stay immediate.
 
