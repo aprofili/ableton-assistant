@@ -40,6 +40,12 @@ def describe_action(a):
         return f"Marker “{a['name']}” at bar {a['bar']:g}"
     if t == "name_section":
         return f"Name section “{a['name']}”"
+    if t == "track_volume":
+        return f"{a.get('track', 'selected')} {a['db']:+g} dB"
+    if t == "check_levels":
+        return "Check levels"
+    if t == "new_input_track":
+        return "New armed track" + (f" “{a['name']}”" if a.get("name") else "") + (f" (input {a['channel']})" if a.get("channel") else "")
     if t == "key":
         return f"Key {a['keys']}"
     if t == "osc":

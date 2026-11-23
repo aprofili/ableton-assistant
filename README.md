@@ -43,6 +43,10 @@ Anything else goes to the Claude API (needs the key). Single-key actions it iden
 
 XPPen ACK05 (or any key-sending pad): voice button, play/pause, undo/redo, record, metronome, loop, section jumps, dial scroll (hold K7 for vertical), plus a live pad map window for a second monitor. Key assignments and setup: `docs/PAD.md`.
 
+## RØDECaster / levels
+
+Voice: track volume up/down, clipping check, new armed input tracks. See `docs/RODE.md`.
+
 ## Triggers
 
 `hold` records while held, `toggle` is press-start/press-stop, `tap` ends on ~1 s of silence (for one-event buttons). Pick a key nothing else uses. `Ctrl+Alt+Space` is taken by the Claude desktop app.

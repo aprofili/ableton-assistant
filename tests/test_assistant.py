@@ -23,6 +23,10 @@ class MockLive:
         self.props = {"signature_numerator": numerator, "signature_denominator": denominator,
                       "metronome": 0, "loop": 0, "tempo": 120.0, "current_song_time": 0.0}
         self.cues = []  # [name, time]
+        self.tracks = ["Vocals", "Guitar"]
+        self.selected = 1
+        self.volume = 0.5
+        self.meter = 0.4
         self.reply = SimpleUDPClient("127.0.0.1", recv_port)
         d = Dispatcher()
         d.set_default_handler(self._on)
@@ -44,6 +48,22 @@ class MockLive:
                 self.cues.append(["marker", t])
         elif addr == "/live/song/cue_point/set/name":
             sorted(self.cues, key=lambda c: c[1])[args[0]][0] = args[1]
+        elif addr == "/live/song/get/track_names":
+            self.reply.send_message(addr, list(self.tracks))
+        elif addr == "/live/song/get/num_tracks":
+            self.reply.send_message(addr, [len(self.tracks)])
+        elif addr == "/live/song/create_audio_track":
+            self.tracks.append("1 Audio")
+        elif addr == "/live/view/get/selected_track":
+            self.reply.send_message(addr, [self.selected])
+        elif addr == "/live/track/get/volume":
+            self.reply.send_message(addr, [args[0], self.volume])
+        elif addr in ("/live/track/get/output_meter_level", "/live/master/get/output_meter_level"):
+            self.reply.send_message(addr, ([args[0], self.meter] if args else [self.meter]))
+        elif addr == "/live/track/get/available_input_routing_types":
+            self.reply.send_message(addr, [args[0], "Ext. In", "No Input"])
+        elif addr == "/live/track/get/available_input_routing_channels":
+            self.reply.send_message(addr, [args[0], "1/2", "3/4", "5"])
         elif addr.startswith("/live/song/get/"):
             self.reply.send_message(addr, [self.props.get(addr.rsplit("/", 1)[1], 0)])
         elif addr.startswith("/live/song/set/"):
@@ -305,6 +325,54 @@ class PadTests(unittest.TestCase):
             self.assertTrue(updater._vt("v1.10.0") > updater._vt("1.9.9"))
         finally:
             shutil.rmtree(root)
+
+    def _with_live(self, port, fn):
+        live = MockLive(port, port + 1)
+        osc = AbletonOSC("127.0.0.1", port, port + 1)
+        try:
+            return fn(live, osc)
+        finally:
+            osc.close()
+            live.close()
+
+    def test_track_volume_by_name_and_selected(self):
+        def go(live, osc):
+            act = Actions(osc, {})
+            act.run(router.route("turn up the vocals by 4 db", shortcuts_mod.Shortcuts())[0])
+            act.run(router.route("turn it down", shortcuts_mod.Shortcuts())[0])
+            time.sleep(0.2)
+            return [m for m in live.received if m[0] == "/live/track/set/volume"]
+        sent = self._with_live(21020, go)
+        self.assertEqual(sent[0][1], 0)
+        self.assertAlmostEqual(sent[0][2], 0.6)
+        self.assertEqual(sent[1][1], 1)
+        self.assertAlmostEqual(sent[1][2], 0.45)
+
+    def test_check_levels_reports_clipping(self):
+        def go(live, osc):
+            reports = []
+            act = Actions(osc, {})
+            act.report = lambda m, ok=True: reports.append((m, ok))
+            live.props["is_playing"] = 1
+            live.meter = 0.95
+            act.run([{"type": "check_levels", "seconds": 0.3}])
+            live.meter = 0.4
+            act.run([{"type": "check_levels", "seconds": 0.3}])
+            return reports
+        r = self._with_live(21030, go)
+        self.assertTrue(r[0][0].startswith("Clipping") and not r[0][1])
+        self.assertTrue(r[1][0].startswith("No clipping") and r[1][1])
+
+    def test_new_input_track(self):
+        def go(live, osc):
+            Actions(osc, {}).run(router.route("create a new audio track called vocals from mic 3", shortcuts_mod.Shortcuts())[0])
+            time.sleep(0.2)
+            return [m for m in live.received if "/set/" in m[0] or "create" in m[0]]
+        sent = self._with_live(21040, go)
+        self.assertIn(("/live/track/set/name", 2, "Vocals"), sent)
+        self.assertIn(("/live/track/set/arm", 2, 1), sent)
+        self.assertIn(("/live/track/set/input_routing_type", 2, "Ext. In"), sent)
+        self.assertIn(("/live/track/set/input_routing_channel", 2, "3/4"), sent)
 
     def test_play_from_loop_start(self):
         sc = shortcuts_mod.Shortcuts()
