@@ -104,6 +104,13 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(self.r("play from bar 17"), [{"type": "goto_bar", "bar": 17}, {"type": "play"}])
         self.assertEqual(self.r("go to the start"), [{"type": "goto_bar", "bar": 1}])
 
+    def test_arm_track(self):
+        on, off = [{"type": "arm_track", "on": True}], [{"type": "arm_track", "on": False}]
+        self.assertEqual(self.r("arm this track for recording"), on)
+        self.assertEqual(self.r("arm or disarm this track"), off)
+        for phrase in ("disarm this track", "de-arm the track for recording", "dearm track", "unarm this track"):
+            self.assertEqual(self.r(phrase), off, phrase)
+
     def test_count_in_and_sections(self):
         self.assertEqual(self.r("change the count in to two measures"), [{"type": "set_count_in", "bars": 2}])
         self.assertEqual(self.r("next section"), [{"type": "next_cue"}])

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.7
+- Voice: arm / disarm / de-arm / unarm the selected track for recording.
+
 ## 1.10.6
 - Solo is exclusive: soloing a track un-solos all others.
 

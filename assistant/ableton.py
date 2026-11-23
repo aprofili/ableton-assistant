@@ -336,6 +336,11 @@ class Actions:
         b = beats / bpb + 1
         return ("%d" % b) if abs(b - round(b)) < 1e-6 else ("%.2f" % b)
 
+    def a_arm_track(self, a):
+        """Arm (or disarm) the selected track for recording."""
+        ti = int(self.osc.query("/live/view/get/selected_track", timeout=0.5)[-1])
+        self.osc.send("/live/track/set/arm", ti, 1 if a.get("on", True) else 0)
+
     def a_track_toggle(self, a):
         """Toggle mute or solo on the selected track; remembers a one-line note for the pad popup."""
         prop = a["prop"]  # "mute" | "solo"

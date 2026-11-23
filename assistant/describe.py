@@ -25,6 +25,8 @@ def describe_action(a):
         return "Redo"
     if t == "goto_bar":
         return f"Go to bar {a['bar']:g}"
+    if t == "arm_track":
+        return "Arm track for recording" if a.get("on", True) else "Disarm track"
     if t == "goto_cue":
         return f"Go to “{a['name']}”"
     if t == "next_cue":

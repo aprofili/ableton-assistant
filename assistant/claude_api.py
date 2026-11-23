@@ -19,6 +19,7 @@ Action types:
   name_section{name}  name the section the playhead is currently in (creates a locator there if none precedes it)
   track_volume{track, db}  change a track's fader by db (+/-); track = name from state or "selected"
   check_levels{seconds}  watch meters while playing and report clipping (shown on screen)
+  arm_track{on: bool}  arm/disarm the selected track for recording
   new_input_track{name, channel}  new armed audio track whose input is external channel N (RØDECaster inputs)
   key{keys, learn_phrases}  one Ableton keyboard shortcut, e.g. "ctrl+shift+t", "f9", "tab"
   osc{address,args}  raw AbletonOSC call if nothing above fits (e.g. /live/song/cue_point/add_or_delete,
@@ -56,7 +57,7 @@ TOOL = {
                     "properties": {
                         "type": {"type": "string", "enum": [
                             "set_loop", "loop", "metronome", "play", "continue", "stop", "undo", "redo",
-                            "goto_bar", "goto_cue", "next_cue", "prev_cue", "set_count_in", "set_tempo",
+                            "goto_bar", "goto_cue", "arm_track", "next_cue", "prev_cue", "set_count_in", "set_tempo",
                             "add_section", "name_section", "track_volume", "check_levels", "new_input_track",
                             "key", "osc", "wait"]},
                         "start_bar": {"type": "number"}, "end_bar": {"type": "number"},
