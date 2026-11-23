@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.3
 - Tray menu regrouped: Settings / Updates / Tools submenus; top level keeps Listening, Pad map, Last command wrong, Microphone, Restart, Quit.
 - Raw HID tap for the XP-Pen pad (logs/pad_hid.log) as groundwork for bypassing the driver.
 - Auto-restart when code files change on disk.
