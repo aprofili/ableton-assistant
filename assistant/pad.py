@@ -35,7 +35,6 @@ MOD = "b3"  # hold: modifier for every other input
 
 # id -> actions. K1 is voice (mod: "that was wrong"), K3 is the modifier itself.
 ACTIONS = {
-    "b2": [{"type": "undo"}],
     "b4": [{"type": "record", "on": "toggle"}],
     "b5": [{"type": "metronome", "on": "toggle"}],
     "b6": [{"type": "loop", "on": "toggle"}],
@@ -47,14 +46,13 @@ ACTIONS = {
 
 # with MOD held
 MOD_ACTIONS = {
-    "b2": [{"type": "redo"}],
     "b4": [{"type": "session_record", "on": "toggle"}],
     "b5": [{"type": "count_in_toggle"}],
     "b6": [{"type": "punch_cycle"}],
     "b7": [{"type": "key", "keys": "shift+tab"}],  # Live: toggle Clip / Device detail view
-    "b8": [{"type": "goto_start"}],
+    "b8": [{"type": "undo"}],
     "b9": [{"type": "playstop", "continue": True}],
-    "b10": [{"type": "goto_end"}],
+    "b10": [{"type": "redo"}],
 }
 VMOD_ACTIONS = MOD_ACTIONS  # old name
 
@@ -72,7 +70,7 @@ def label_for(pid, st):
             return "That was\nWRONG", False
         return ("Listening..." if st.get("listening") else "Voice\n(hold)"), bool(st.get("listening"))
     if pid == "b2":
-        return ("Redo" if mod else "Undo"), False
+        return "", False
     if pid == "b3":
         return "MOD\n(hold)", mod
     if pid == "b4":
@@ -91,13 +89,13 @@ def label_for(pid, st):
     if pid == "b7":
         return ("Clip / Device\nview" if mod else "Session /\nArrangement"), False
     if pid == "b8":
-        return ("Go to\nstart" if mod else "Previous\nsection"), False
+        return ("Undo" if mod else "Previous\nsection"), False
     if pid == "b9":
         if mod:
             return ("Stop" if st.get("playing") else "Continue\nfrom stop"), bool(st.get("playing"))
         return ("Stop" if st.get("playing") else "Play"), bool(st.get("playing"))
     if pid == "b10":
-        return ("Go to\nend" if mod else "Next\nsection"), False
+        return ("Redo" if mod else "Next\nsection"), False
     if pid == "dial_press":
         return "Claude", bool(st.get("listening_claude"))
     if pid == "dial_cw":

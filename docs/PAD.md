@@ -5,15 +5,15 @@ Program each button/dial action in the XPPen driver to send the combo below (Ctr
 | Input | Key to send | Action | With MOD (K3) held |
 |---|---|---|---|
 | K1 | Ctrl+Alt+Shift+F1 | Voice, hold to talk | That was WRONG (saves feedback, see below) |
-| K2 | Ctrl+Alt+Shift+F2 | Undo | Redo |
+| K2 | Ctrl+Alt+Shift+F2 | (unassigned) | (unassigned) |
 | K3 | Ctrl+Alt+Shift+F3 | **MOD**: hold it to change what the other inputs do | |
 | K4 (tall) | Ctrl+Alt+Shift+F4 | Record (arrangement) on/off | Session record on/off |
 | K5 | Ctrl+Alt+Shift+F5 | Metronome toggle | Count-in on/off (1 bar) |
 | K6 | Ctrl+Alt+Shift+F6 | Loop toggle | Punch cycle: in on, out on, in off, out off |
 | K7 (tall) | Ctrl+Alt+Shift+F7 | Session / Arrangement view (Tab) | Clip / Device detail view (Shift+Tab) |
-| K8 | Ctrl+Alt+Shift+F8 | Previous section marker | Go to start |
+| K8 | Ctrl+Alt+Shift+F8 | Previous section marker | Undo |
 | K9 (wide) | Ctrl+Alt+Shift+F9 | Play / Stop (plays from the start marker) | Continue from where it stopped |
-| K10 | Ctrl+Alt+Shift+F10 | Next section marker | Go to end |
+| K10 | Ctrl+Alt+Shift+F10 | Next section marker | Redo |
 | Dial clockwise | Ctrl+Alt+Shift+F11 | Scroll right | Scroll down |
 | Dial counter-clockwise | Ctrl+Alt+Shift+F12 | Scroll left | Scroll up |
 | Dial press | (not programmable on the ACK05 driver) | none | |
