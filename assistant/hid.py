@@ -79,9 +79,10 @@ class HidTap:
             ctypes.memset(buf, 0, 64)
             ctypes.c_ulong.from_buffer(buf).value = 32
             u.GetRawInputDeviceInfoW(d.hDevice, RIDI_DEVICEINFO, buf, ctypes.byref(sz))
-            vals = (ctypes.c_ulong * 8).from_buffer_copy(buf.raw[:32])
-            pages.add((int(vals[5]) & 0xFFFF, int(vals[6]) & 0xFFFF))
-            self._dump(f"device {name} page=0x{int(vals[5]):04X} usage=0x{int(vals[6]):04X}")
+            import struct
+            page, usage = struct.unpack_from("<HH", buf.raw, 20)  # after cbSize, dwType, vid, pid, version
+            pages.add((page, usage))
+            self._dump(f"device {name} page=0x{page:04X} usage=0x{usage:04X}")
         return pages
 
     def _dump(self, line):
