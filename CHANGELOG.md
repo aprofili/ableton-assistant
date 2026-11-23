@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.2
+- Hold+dial now needs the button held for 1 s (`pad.hold_delay`); letting go sooner is a normal tap. Hold labels/icons appear only once it kicks in; no tap on release after a hold. MOD and voice stay immediate.
+
 ## 1.10.1
 - Pad map icons replaced with Lucide icons (ISC license, docs/LUCIDE_LICENSE.txt), flattened to vectors in assistant/icons_data.py.
 

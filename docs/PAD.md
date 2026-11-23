@@ -45,4 +45,4 @@ Hold a button and turn the dial to change something; a plain tap still runs the 
 | K8 | Loop start by bar | by beat |
 | K10 | Loop end by bar | by beat |
 
-Hold the button first, then (optionally) MOD. A tap with no dial turn does the button's normal action on release.
+Hold the button first, then (optionally) MOD. Hold the button for 1 s (`pad.hold_delay`) before hold mode starts; a shorter press is a plain tap.

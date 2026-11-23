@@ -324,7 +324,9 @@ class PadController:
         self.pressed = set()
         self._stamp = {}
         self._hold = {}
-        self._hold_btn = None   # button held for hold+dial (e.g. K5 = tempo)
+        self.hold_delay = float(pc.get("hold_delay", 1.0))  # seconds a button must be held before hold+dial starts
+        self._hold_pending = None  # button down, waiting out hold_delay
+        self._hold_btn = None   # button held long enough for hold+dial (e.g. K2 = tempo)
         self._hold_used = False
         self._nq = None
         self._hid_seen = 0.0
@@ -370,6 +372,11 @@ class PadController:
 
     HID_BUTTONS = [f"b{i}" for i in range(1, 11)] + ["dial_press"]  # bit order in report bytes 2-3
 
+    def _hold_arm(self, pid):
+        if self._hold_pending == pid:
+            self._hold_pending = None
+            self._hold_btn, self._hold_used = pid, False
+
     def hid_active(self):
         """True while the raw HID tap is delivering pad reports (then the driver's key combos are ignored)."""
         return time.time() - self._hid_seen < 30
@@ -408,10 +415,12 @@ class PadController:
                     if self._mod():
                         self.handle(pid)           # MOD+K5 etc. act immediately
                     else:
-                        self._hold_btn, self._hold_used = pid, False
-                elif self._hold_btn == pid:
-                    if not self._hold_used:        # a tap, not a hold+dial: run the normal action
-                        self.handle(pid)
+                        self._hold_pending = pid
+                        threading.Timer(self.hold_delay, self._hold_arm, (pid,)).start()
+                elif self._hold_pending == pid:    # released before the delay: a plain tap
+                    self._hold_pending = None
+                    self.handle(pid)
+                elif self._hold_btn == pid:        # hold mode was active: no tap on release
                     self._hold_btn = None
             elif down:
                 self.handle(pid)
