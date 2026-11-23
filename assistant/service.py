@@ -41,7 +41,7 @@ class Assistant:
         self.osc = self.actions = self.rec = self.stt = self.trigger = None
         self.shortcuts = Shortcuts()
         ov = cfg.get("overlay", {})
-        self.overlay = Overlay(ov.get("opacity", 0.85), ov.get("enabled", True))
+        self.overlay = Overlay(ov.get("opacity", 0.85), ov.get("enabled", True), ov.get("position", "bottom_left"))
         self.overlay.level_fn = lambda: self.rec.level if self.rec else 0.0
         self._api_active = False
         self.last = None

@@ -1,6 +1,7 @@
 # Changelog
 
 ## 1.5.0
+- Popups (listening, results) now appear bottom-left above the taskbar; `overlay.position` = `bottom_left` or `top_center`.
 - Pad: K3 is now a general MOD key. MOD+: K1 wrong, K2 redo, K4 session record, K5 count-in, K6 punch in/out cycle, K7 clip/device view, K8 go to start, K9 continue from stop, K10 go to end, dial scrolls vertically. K7 switches Session/Arrangement; K9 is Play/Stop.
 - Pad map: no curved dial arrows; open state persists across restarts.
 
