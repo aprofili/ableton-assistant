@@ -5,10 +5,10 @@ Program each button/dial action in the XPPen driver to send the combo below (Ctr
 | Input | Key to send | Action | With MOD (K3) held |
 |---|---|---|---|
 | K1 | Ctrl+Alt+Shift+F1 | Voice, hold to talk | That was WRONG (saves feedback, see below) |
-| K2 | Ctrl+Alt+Shift+F2 | Tap tempo (hold + dial = tempo) | Metronome toggle |
+| K2 | Ctrl+Alt+Shift+F2 | Metronome toggle (hold 1 s + dial = tempo) | Tap tempo |
 | K3 | Ctrl+Alt+Shift+F3 | **MOD**: hold it to change what the other inputs do | |
 | K4 (tall) | Ctrl+Alt+Shift+F4 | Record (arrangement) on/off | Session record on/off |
-| K5 | Ctrl+Alt+Shift+F5 | Mute selected track (hold + dial = volume) | Solo selected track |
+| K5 | Ctrl+Alt+Shift+F5 | Solo selected track (hold 1 s + dial = volume) | Mute selected track |
 | K6 | Ctrl+Alt+Shift+F6 | Loop toggle | Punch cycle: in on, out on, in off, out off |
 | K7 (tall) | Ctrl+Alt+Shift+F7 | Session / Arrangement view (Tab) | Clip / Device detail view (Shift+Tab) |
 | K8 | Ctrl+Alt+Shift+F8 | Previous section marker | Undo |

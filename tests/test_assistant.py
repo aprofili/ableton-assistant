@@ -274,9 +274,9 @@ class PadTests(unittest.TestCase):
         self.assertEqual(pad.label_for("b9", {"playing": True})[0], "Stop")
         self.assertEqual(pad.label_for("b9", {"playing": False})[0], "Play")
         self.assertEqual(pad.label_for("b9", {"vmod": True})[0], "Continue\nfrom stop")
-        self.assertTrue(pad.label_for("b2", {"vmod": True, "metronome": True})[1])
-        self.assertEqual(pad.label_for("b5", {})[0], "Mute\ntrack")
-        self.assertEqual(pad.label_for("b5", {"vmod": True})[0], "Solo\ntrack")
+        self.assertTrue(pad.label_for("b2", {"metronome": True})[1])
+        self.assertEqual(pad.label_for("b5", {})[0], "Solo\ntrack")
+        self.assertEqual(pad.label_for("b5", {"vmod": True})[0], "Mute\ntrack")
         self.assertEqual(pad.label_for("b1", {"vmod": True})[0], "That was\nWRONG")
         self.assertEqual(pad.label_for("dial_cw", {"vmod": True})[0], "Scroll down")
         self.assertEqual(pad.label_for("dial_cw", {})[0], "Scroll right")
@@ -289,7 +289,7 @@ class PadTests(unittest.TestCase):
             act = Actions(osc, {})
             for pid in ("b9", "b6", "b4"):
                 act.run(pad.ACTIONS[pid])
-            act.run(pad.ACTIONS["b2"])         # K2 = tap tempo
+            act.run(pad.MOD_ACTIONS["b2"])     # MOD+K2 = tap tempo
             act.run(pad.MOD_ACTIONS["b8"])     # MOD+K8 = undo
             act.run(pad.MOD_ACTIONS["b9"])     # stopped + MOD -> continue
             live.props["is_playing"] = 1
@@ -470,7 +470,7 @@ class PadTests(unittest.TestCase):
     def test_icons(self):
         pad = self._pad_mod()
         self.assertEqual(pad.icon_for("b9", {"playing": True})[0], "stop")
-        self.assertEqual(pad.icon_for("b5", {"vmod": True})[0], "solo")
+        self.assertEqual(pad.icon_for("b5", {"vmod": True})[0], "mute")
         self.assertEqual(pad.icon_for("dial_cw", {"vmod": True})[0], "scroll_v")
         self.assertEqual(pad.icon_for("dial_ccw", {"hold": "b2"}), ("scroll_h", "\u00b11 BPM"))
         self.assertEqual(pad.icon_for("b2", {"hold": "b2"})[0], "h_tempo")
