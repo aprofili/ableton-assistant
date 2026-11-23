@@ -275,7 +275,8 @@ class PadTests(unittest.TestCase):
         self.assertEqual(pad.label_for("b9", {"playing": False})[0], "Play")
         self.assertEqual(pad.label_for("b9", {"vmod": True})[0], "Continue\nfrom stop")
         self.assertTrue(pad.label_for("b2", {"vmod": True, "metronome": True})[1])
-        self.assertEqual(pad.label_for("b5", {})[0], "Capture\nMIDI")
+        self.assertEqual(pad.label_for("b5", {})[0], "Mute\ntrack")
+        self.assertEqual(pad.label_for("b5", {"vmod": True})[0], "Solo\ntrack")
         self.assertEqual(pad.label_for("b1", {"vmod": True})[0], "That was\nWRONG")
         self.assertEqual(pad.label_for("dial_cw", {"vmod": True})[0], "Scroll down")
         self.assertEqual(pad.label_for("dial_cw", {})[0], "Scroll right")
@@ -289,7 +290,6 @@ class PadTests(unittest.TestCase):
             for pid in ("b9", "b6", "b4"):
                 act.run(pad.ACTIONS[pid])
             act.run(pad.ACTIONS["b2"])         # K2 = tap tempo
-            act.run(pad.ACTIONS["b5"])         # K5 = capture MIDI
             act.run(pad.MOD_ACTIONS["b8"])     # MOD+K8 = undo
             act.run(pad.MOD_ACTIONS["b9"])     # stopped + MOD -> continue
             live.props["is_playing"] = 1
@@ -302,7 +302,7 @@ class PadTests(unittest.TestCase):
             sent = [m for m in live.received if "/get/" not in m[0] and m[0] != "/live/test"]
             self.assertEqual(sent, [
                 ("/live/song/start_playing",), ("/live/song/set/loop", 1), ("/live/song/set/record_mode", 1),
-                ("/live/song/tap_tempo",), ("/live/song/capture_midi",), ("/live/song/undo",), ("/live/song/continue_playing",), ("/live/song/stop_playing",),
+                ("/live/song/tap_tempo",), ("/live/song/undo",), ("/live/song/continue_playing",), ("/live/song/stop_playing",),
                 ("/live/song/set/session_record", 1),
                 ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 0),
                 ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 1),

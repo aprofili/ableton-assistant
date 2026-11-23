@@ -336,6 +336,19 @@ class Actions:
         b = beats / bpb + 1
         return ("%d" % b) if abs(b - round(b)) < 1e-6 else ("%.2f" % b)
 
+    def a_track_toggle(self, a):
+        """Toggle mute or solo on the selected track; remembers a one-line note for the pad popup."""
+        prop = a["prop"]  # "mute" | "solo"
+        ti = int(self.osc.query("/live/view/get/selected_track", timeout=0.5)[-1])
+        cur = int(self.osc.query("/live/track/get/" + prop, ti, timeout=0.5)[-1])
+        self.osc.send("/live/track/set/" + prop, ti, 0 if cur else 1)
+        try:
+            name = self._track_names()[ti]
+        except Exception:
+            name = "Track %d" % (ti + 1)
+        word = {"mute": ("muted", "unmuted"), "solo": ("solo on", "solo off")}[prop][0 if not cur else 1]
+        self.note = ("%s %s" % (name, word), prop)
+
     def a_undo(self, a):
         self.osc.send("/live/song/undo")
 
@@ -344,6 +357,8 @@ class Actions:
 
     def a_tap_tempo(self, a):
         self.osc.send("/live/song/tap_tempo")
+
+    note = None
 
     def a_capture_midi(self, a):
         self.osc.send("/live/song/capture_midi")
