@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.8.0
+- Hold K5 + turn the dial = tempo in whole BPM (popup shows it). K5 now toggles the metronome on release, and only if the dial wasn't used. Framework for more hold+dial buttons (`HOLD_SCROLL`).
+
 ## 1.7.10
 - Reverted default model to small.en (distil-small.en was no faster and less accurate on short commands); loop phrases added to the Whisper prompt.
 - Corner popup now also appears for commands handled locally (what was done + what was heard) and for 'Not understood'.
