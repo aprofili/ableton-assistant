@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.9
+- Faster transcription: default model distil-small.en (falls back to small.en if it can't load), CPU threads = physical cores (`whisper.cpu_threads`).
+
 ## 1.7.8
 - K2 = Tap tempo, MOD+K2 = Capture MIDI.
 
