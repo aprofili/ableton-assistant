@@ -27,7 +27,7 @@ REPO = "aprofili/ableton-assistant"
 BACKUP = os.path.join(ROOT, ".update_backup")
 PENDING = os.path.join(ROOT, ".update_pending")
 PROTECT = (".venv", "config.json", ".env", "logs", ".update_backup", ".update_pending",
-           os.path.join("data", "learned_shortcuts.json"), os.path.join("data", "feedback"), "__pycache__", ".git")
+           os.path.join("data", "learned_shortcuts.json"), os.path.join("data", "feedback"), os.path.join("data", "ui_state.json"), "__pycache__", ".git")
 
 
 def _vt(v):

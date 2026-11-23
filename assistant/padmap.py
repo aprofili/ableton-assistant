@@ -1,6 +1,8 @@
 """Live map of the pad: a resizable/maximizable window drawn in the shape of the XPPen ACK05,
 each button labelled with what it does right now. Own Tk thread. Open from the tray: "Pad map"."""
+import json
 import logging
+import os
 import queue
 import threading
 
@@ -29,7 +31,37 @@ class PadMap:
         self.q = queue.Queue()
         self.started = False
 
+    STATE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "ui_state.json")
+
+    def _save_open(self, is_open):
+        try:
+            os.makedirs(os.path.dirname(self.STATE), exist_ok=True)
+            try:
+                with open(self.STATE, encoding="utf-8") as f:
+                    st = json.load(f)
+            except Exception:
+                st = {}
+            st["padmap_open"] = bool(is_open)
+            with open(self.STATE, "w", encoding="utf-8") as f:
+                json.dump(st, f)
+        except Exception:
+            log.exception("Could not save pad map state")
+
+    def restore(self):
+        """Reopen the map if it was open when the assistant last ran."""
+        try:
+            with open(self.STATE, encoding="utf-8") as f:
+                if json.load(f).get("padmap_open"):
+                    self.show()
+        except Exception:
+            pass
+
+    def hide(self):
+        self._save_open(False)
+        self.root.withdraw()
+
     def show(self):
+        self._save_open(True)
         if not self.started:
             self.started = True
             threading.Thread(target=self._run, daemon=True, name="padmap").start()
@@ -49,7 +81,7 @@ class PadMap:
             self.canvas = tk.Canvas(self.root, bg=BG, highlightthickness=0)
             self.canvas.pack(fill="both", expand=True)
             self.full = False
-            self.root.protocol("WM_DELETE_WINDOW", self.root.withdraw)
+            self.root.protocol("WM_DELETE_WINDOW", self.hide)
             self.root.bind("<F11>", self._toggle_full)
             self.root.bind("<Escape>", lambda e: self._set_full(False))
             self.canvas.bind("<Double-Button-1>", self._toggle_full)
@@ -120,11 +152,9 @@ class PadMap:
         rb = r * 0.36
         c.create_oval(X(cx - rb), Y(cy - rb), X(cx + rb), Y(cy + rb), fill="#0d1014", outline="#3a424d", width=ow)
         ccw, cw = snap["dial_ccw"], snap["dial_cw"]
-        self._arrow(X(cx - r * 0.62), Y(cy - r * 0.62), "\u21ba", ccw["pressed"], s)
-        self._arrow(X(cx + r * 0.62), Y(cy - r * 0.62), "\u21bb", cw["pressed"], s)
         # dial labels under the dial, on the body
-        self._text(X(100), Y(cy + r + 22), "\u21ba " + ccw["label"], s * 8.5, FG)
-        self._text(X(100), Y(cy + r + 42), "\u21bb " + cw["label"], s * 8.5, FG)
+        self._text(X(100), Y(cy + r + 22), "\u21ba " + ccw["label"], s * 8.5, KEYDN if ccw["pressed"] else FG)
+        self._text(X(100), Y(cy + r + 42), "\u21bb " + cw["label"], s * 8.5, KEYDN if cw["pressed"] else FG)
         # keys
         for pid, (a0, b0, a1, b1) in KEYS.items():
             k = snap[pid]

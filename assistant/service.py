@@ -12,6 +12,7 @@ from .shortcuts import Shortcuts
 from .overlay import Overlay
 from .pad import PadController
 from .padmap import PadMap
+from .pad import MOD as MOD_KEY
 
 log = logging.getLogger("assistant")
 _mutex = None
@@ -95,8 +96,9 @@ class Assistant:
             t = self.cfg["trigger"]
             self.trigger = Trigger(t["keys"], t["mode"], self._on_start, self._on_stop)
             if self.pad.enabled:
-                self.trigger.add_combo(self.pad.voice_key)
+                self.trigger.add_combo(self.pad.voice_key, suppress=lambda: MOD_KEY in self.pad.pressed)
                 self.pad.start()
+                self.padmap.restore()
             self.ready = True
             from . import updater
             updater.confirm()

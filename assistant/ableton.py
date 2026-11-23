@@ -140,6 +140,41 @@ class Actions:
         else:
             self.osc.send("/live/song/continue_playing")
 
+    def a_playstop(self, a):
+        """Playing -> stop. Stopped -> play from the start marker, or (continue=True) from where it stopped."""
+        if bool(self.osc.query("/live/song/get/is_playing")[0]):
+            self.osc.send("/live/song/stop_playing")
+        elif a.get("continue"):
+            self.osc.send("/live/song/continue_playing")
+        else:
+            self.osc.send("/live/song/start_playing")
+
+    def a_session_record(self, a):
+        on = a.get("on", "toggle")
+        if on == "toggle":
+            on = not bool(self.osc.query("/live/song/get/session_record")[0])
+        self.osc.send("/live/song/set/session_record", 1 if on else 0)
+
+    def a_count_in_toggle(self, a):
+        """Count-in off <-> 1 bar (other lengths are left alone when turning off)."""
+        cur = int(self.osc.query("/live/song/get/count_in_duration")[0])
+        self.osc.send("/live/song/set/count_in_duration", 0 if cur else 1)
+
+    def a_punch_cycle(self, a):
+        """Cycle (in, out): off/off -> in on -> in+out on -> in off (out on) -> off/off."""
+        pin = bool(self.osc.query("/live/song/get/punch_in")[0])
+        pout = bool(self.osc.query("/live/song/get/punch_out")[0])
+        nxt = {(False, False): (True, False), (True, False): (True, True),
+               (True, True): (False, True), (False, True): (False, False)}[(pin, pout)]
+        self.osc.send("/live/song/set/punch_in", 1 if nxt[0] else 0)
+        self.osc.send("/live/song/set/punch_out", 1 if nxt[1] else 0)
+
+    def a_goto_start(self, a):
+        self.osc.send("/live/song/set/current_song_time", 0.0)
+
+    def a_goto_end(self, a):
+        self.osc.send("/live/song/set/current_song_time", float(self.osc.query("/live/song/get/song_length")[0]))
+
     def a_record(self, a):
         on = a.get("on", "toggle")
         if on == "toggle":

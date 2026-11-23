@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+- Pad: K3 is now a general MOD key. MOD+: K1 wrong, K2 redo, K4 session record, K5 count-in, K6 punch in/out cycle, K7 clip/device view, K8 go to start, K9 continue from stop, K10 go to end, dial scrolls vertically. K7 switches Session/Arrangement; K9 is Play/Stop.
+- Pad map: no curved dial arrows; open state persists across restarts.
+
 ## 1.4.1
 - Pad keys are now Ctrl+Alt+Shift+F1..F12 (single-key remaps still work); modifier-aware matching. Dial press is not programmable on the ACK05 driver.
 - Fix: pad modifiers no longer leak into wheel scrolling (Alt+wheel resized tracks).

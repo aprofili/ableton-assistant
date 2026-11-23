@@ -49,6 +49,7 @@ class Trigger:
 
     def __init__(self, combo, mode, on_start, on_stop):
         self.combos = [parse_combo(combo)]
+        self.guards = [None]  # per-combo: callable returning True to suppress it
         self.mode = mode
         self.on_start, self.on_stop = on_start, on_stop
         self.pressed = set()
@@ -63,12 +64,14 @@ class Trigger:
     def combo(self, value):
         self.combos[0] = value
 
-    def add_combo(self, combo):
-        """Extra key that also triggers voice (e.g. the pad's voice button)."""
+    def add_combo(self, combo, suppress=None):
+        """Extra key that also triggers voice (e.g. the pad's voice button). suppress() -> True blocks it
+        (the pad uses this so MOD+K1 doesn't start listening)."""
         self.combos.append(parse_combo(combo))
+        self.guards.append(suppress)
 
     def _held(self):
-        return any(c <= self.pressed for c in self.combos)
+        return any(c <= self.pressed and not (g and g()) for c, g in zip(self.combos, self.guards))
 
     def stop_from_outside(self):
         if self.active:

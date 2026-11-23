@@ -271,9 +271,12 @@ class PadTests(unittest.TestCase):
 
     def test_labels_follow_state(self):
         pad = self._pad_mod()
-        self.assertEqual(pad.label_for("b9", {"playing": True})[0], "Pause")
+        self.assertEqual(pad.label_for("b9", {"playing": True})[0], "Stop")
         self.assertEqual(pad.label_for("b9", {"playing": False})[0], "Play")
+        self.assertEqual(pad.label_for("b9", {"vmod": True})[0], "Continue\nfrom stop")
         self.assertTrue(pad.label_for("b5", {"metronome": True})[1])
+        self.assertEqual(pad.label_for("b5", {"vmod": True, "count_in": True})[0], "Count-in\nON")
+        self.assertEqual(pad.label_for("b1", {"vmod": True})[0], "That was\nWRONG")
         self.assertEqual(pad.label_for("dial_cw", {"vmod": True})[0], "Scroll down")
         self.assertEqual(pad.label_for("dial_cw", {})[0], "Scroll right")
 
@@ -283,15 +286,29 @@ class PadTests(unittest.TestCase):
         osc = AbletonOSC("127.0.0.1", 21010, 21011)
         try:
             act = Actions(osc, {})
-            for pid in ("b9", "b6", "b4", "b2", "dial_press"):
+            for pid in ("b9", "b6", "b4", "b2"):
                 act.run(pad.ACTIONS[pid])
+            act.run(pad.MOD_ACTIONS["b9"])     # stopped + MOD -> continue
             live.props["is_playing"] = 1
-            act.run(pad.ACTIONS["b9"])
-            time.sleep(0.2)
+            act.run(pad.ACTIONS["b9"])         # playing -> stop
+            act.run(pad.MOD_ACTIONS["b4"])     # session record on
+            act.run(pad.MOD_ACTIONS["b5"])     # count-in 0 -> 1
+            for _ in range(4):                 # punch cycle
+                act.run(pad.MOD_ACTIONS["b6"])
+            live.props["song_length"] = 64.0
+            act.run(pad.MOD_ACTIONS["b8"])
+            act.run(pad.MOD_ACTIONS["b10"])
+            time.sleep(0.3)
             sent = [m for m in live.received if "/get/" not in m[0] and m[0] != "/live/test"]
             self.assertEqual(sent, [
-                ("/live/song/continue_playing",), ("/live/song/set/loop", 1), ("/live/song/set/record_mode", 1),
-                ("/live/song/undo",), ("/live/song/set/current_song_time", 0.0), ("/live/song/stop_playing",)])
+                ("/live/song/start_playing",), ("/live/song/set/loop", 1), ("/live/song/set/record_mode", 1),
+                ("/live/song/undo",), ("/live/song/continue_playing",), ("/live/song/stop_playing",),
+                ("/live/song/set/session_record", 1), ("/live/song/set/count_in_duration", 1),
+                ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 0),
+                ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 1),
+                ("/live/song/set/punch_in", 0), ("/live/song/set/punch_out", 1),
+                ("/live/song/set/punch_in", 0), ("/live/song/set/punch_out", 0),
+                ("/live/song/set/current_song_time", 0.0), ("/live/song/set/current_song_time", 64.0)])
         finally:
             osc.close()
             live.close()
@@ -407,7 +424,7 @@ class PadTests(unittest.TestCase):
         pc.scroller.scroll = lambda d, vertical: calls.append((d, vertical))
         self.assertEqual(pc.by_combo[frozenset({"f5"})], "b2")
         pc.handle("dial_cw")
-        pc.pressed.add("b7")
+        pc.pressed.add("b3")
         pc.handle("dial_ccw")
         self.assertEqual(calls, [(1, False), (-1, True)])
         self.assertEqual(pc.voice_key, "ctrl+alt+shift+f1")
