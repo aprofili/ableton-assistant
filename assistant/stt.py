@@ -10,10 +10,18 @@ DICTATION_PROMPT = ("Chat with Claude about the Ableton assistant: Claude, Claud
 
 
 class Transcriber:
-    def __init__(self, model="small.en", device="cpu", compute_type="int8"):
+    def __init__(self, model="small.en", device="cpu", compute_type="int8", cpu_threads=0):
+        import logging
+        import os
         from faster_whisper import WhisperModel
 
-        self.model = WhisperModel(model, device=device, compute_type=compute_type)
+        if not cpu_threads:  # default 4 leaves cores idle; use the physical cores
+            cpu_threads = max(2, (os.cpu_count() or 4) // 2)
+        try:
+            self.model = WhisperModel(model, device=device, compute_type=compute_type, cpu_threads=cpu_threads)
+        except Exception as e:  # e.g. the faster model could not be downloaded: keep working with the old one
+            logging.getLogger("assistant").info("Could not load %s (%s); falling back to small.en", model, e)
+            self.model = WhisperModel("small.en", device=device, compute_type=compute_type, cpu_threads=cpu_threads)
 
     def warm_up(self):
         import numpy as np

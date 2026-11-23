@@ -92,7 +92,7 @@ class Assistant:
                 self.notify("No reply from Ableton. Is AbletonOSC enabled in Live's preferences?", "error")
             log.info("Loading speech model (%s)...", self.cfg["whisper"]["model"])
             w = self.cfg["whisper"]
-            self.stt = Transcriber(w["model"], w["device"], w["compute_type"])
+            self.stt = Transcriber(w["model"], w["device"], w["compute_type"], w.get("cpu_threads", 0))
             self.stt.warm_up()
             t = self.cfg["trigger"]
             self.trigger = Trigger(t["keys"], t["mode"], self._on_start, self._on_stop)
