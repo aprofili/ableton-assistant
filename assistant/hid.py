@@ -44,6 +44,7 @@ class HidTap:
         self._names = {}
         self._seen = {}
         self._count = 0
+        self._last_report = time.time()
 
     def start(self):
         if sys.platform != "win32":
@@ -70,6 +71,7 @@ class HidTap:
         u.GetRawInputDeviceList(arr, ctypes.byref(n), ctypes.sizeof(RAWINPUTDEVICELIST))
         pages = set()
         for d in arr:
+            self._dump(f"rawdev type={d.dwType} {self._devname(d.hDevice)[:110]}")
             if d.dwType != RIM_TYPEHID:
                 continue
             name = self._devname(d.hDevice).upper()
@@ -88,6 +90,29 @@ class HidTap:
             pages.add((page, usage))
             self._dump(f"device {name} page=0x{page:04X} usage=0x{usage:04X}")
         return pages
+
+    def enable_raw_mode(self):
+        """Switch the pad to raw mode like the XPPen driver does. Runs in a short-lived child process with a
+        timeout so a stuck HID call can never freeze the assistant."""
+        import subprocess
+        try:
+            r = subprocess.run([sys.executable, "-I", "-m", "assistant.hidinit"], cwd=HERE, capture_output=True,
+                               text=True, timeout=8, creationflags=0x08000000)
+            for line in (r.stdout + r.stderr).splitlines():
+                self._dump("rawmode " + line)
+            log.info("Pad raw mode: %s", (r.stdout.strip().splitlines() or ["no output"])[-1])
+        except subprocess.TimeoutExpired:
+            self._dump("rawmode child timed out")
+            log.info("Pad raw mode: timed out")
+
+    def _xppen_paths(self):
+        u = ctypes.windll.user32
+        n = wt.UINT(0)
+        u.GetRawInputDeviceList(None, ctypes.byref(n), ctypes.sizeof(RAWINPUTDEVICELIST))
+        arr = (RAWINPUTDEVICELIST * n.value)()
+        u.GetRawInputDeviceList(arr, ctypes.byref(n), ctypes.sizeof(RAWINPUTDEVICELIST))
+        return [self._devname(d.hDevice) for d in arr
+                if d.dwType == RIM_TYPEHID and "VID_28BD" in self._devname(d.hDevice).upper()]
 
     def _dump(self, line):
         try:
@@ -148,10 +173,24 @@ class HidTap:
             else:
                 self._dump(f"register failed page=0x{r.usUsagePage:04X} usage=0x{r.usUsage:04X} err={k.GetLastError()}")
         log.info("HID tap registered (%s/%s entries)", ok, len(reg))
+        try:
+            self.enable_raw_mode()
+            threading.Thread(target=self._keep_raw, daemon=True, name="pad-rawmode").start()
+        except Exception:
+            log.exception("raw mode failed")
         msg = wt.MSG()
         while u.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
             u.TranslateMessage(ctypes.byref(msg))
             u.DispatchMessageW(ctypes.byref(msg))
+
+    def _keep_raw(self):
+        """The pad drops back to keyboard mode when it reconnects (wireless sleep/wake): re-send every minute."""
+        while True:
+            time.sleep(60)
+            try:
+                self.enable_raw_mode()
+            except Exception:
+                log.exception("raw mode resend")
 
     def _on_input(self, lparam):
         u = ctypes.windll.user32
@@ -164,6 +203,7 @@ class HidTap:
         name = self._devname(hdr.hDevice)
         if "VID_28BD" not in name.upper():
             return
+        self._last_report = time.time()
         if hdr.dwType == 1:  # keyboard: the pad's own default keystrokes (no driver)
             import struct
             make, flags, _r, vkey, msg = struct.unpack_from("<HHHHI", buf.raw, hs)
