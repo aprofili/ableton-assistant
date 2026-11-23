@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.5
+- Claude mark on the dial is 25% smaller.
+
 ## 1.10.4
 - Dial centre shows the Claude mark (orange) instead of the generic spark.
 
