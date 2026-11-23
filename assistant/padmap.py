@@ -23,139 +23,38 @@ BODY_RECT = (42, 60, 430, 262)
 DIAL = (78, 104, 52)  # cx, cy, outer radius (the dial overhangs the body's top-left corner)
 W0, H0 = 500.0, 282.0
 
-# ---- icons: simple line glyphs drawn on the canvas (scalable, one consistent style) -------------
+# ---- icons: Lucide glyphs (ISC license, see docs/LUCIDE_LICENSE.txt), flattened to polylines in icons_data.py,
+# so they scale to any size. The dial-centre spark is drawn here.
 import math as _m
 
+from .icons_data import ICONS
 
-def _arrowhead(c, x, y, dx, dy, size, col):
-    n = _m.hypot(dx, dy) or 1
-    dx, dy = dx / n, dy / n
-    px, py = -dy, dx
-    c.create_polygon(x + dx * size, y + dy * size, x - dx * size * .2 + px * size * .75, y - dy * size * .2 + py * size * .75,
-                     x - dx * size * .2 - px * size * .75, y - dy * size * .2 - py * size * .75, fill=col, outline=col)
-
-
-def _arc_arrow(c, cx, cy, a, b, start, extent, col, lw, head=1):
-    c.create_arc(cx - a, cy - b, cx + a, cy + b, start=start, extent=extent, style="arc", outline=col, width=lw)
-    th = _m.radians(start + extent)
-    d = 1 if extent > 0 else -1
-    pt = lambda t: (cx + a * _m.cos(t), cy - b * _m.sin(t))
-    x, y = pt(th)
-    x2, y2 = pt(th + d * 0.05)
-    _arrowhead(c, x, y, x2 - x, y2 - y, lw * 2.6, col)
+_FILLED = {"rec": "red", "stop": "fg", "play": "fg"}
+_RED_ICONS = {"rec", "rec_session"}
 
 
 def _icon(c, name, cx, cy, r, col, lw):
-    L = lambda *pts, **kw: c.create_line(*pts, fill=col, width=lw, capstyle="round", joinstyle="round", **kw)
-    poly = lambda *pts, fill=None: c.create_polygon(*pts, fill=fill or "", outline=col, width=lw, joinstyle="round")
-    box = lambda x0, y0, x1, y1, fill=None: c.create_rectangle(cx + x0 * r, cy + y0 * r, cx + x1 * r, cy + y1 * r,
-                                                              outline=col, fill=fill or "", width=lw)
-    if name == "mic":
-        c.create_oval(cx - .3 * r, cy - .85 * r, cx + .3 * r, cy + .15 * r, outline=col, width=lw)
-        c.create_arc(cx - .6 * r, cy - .55 * r, cx + .6 * r, cy + .5 * r, start=180, extent=180, style="arc", outline=col, width=lw)
-        L(cx, cy + .5 * r, cx, cy + .85 * r)
-        L(cx - .3 * r, cy + .85 * r, cx + .3 * r, cy + .85 * r)
-    elif name == "tap":
-        c.create_oval(cx - .2 * r, cy - .2 * r, cx + .2 * r, cy + .2 * r, fill=col, outline=col)
-        c.create_oval(cx - .55 * r, cy - .55 * r, cx + .55 * r, cy + .55 * r, outline=col, width=lw)
-        c.create_oval(cx - .9 * r, cy - .9 * r, cx + .9 * r, cy + .9 * r, outline=col, width=lw)
-    elif name in ("metronome", "h_tempo"):
-        poly(cx - .55 * r, cy + .85 * r, cx + .55 * r, cy + .85 * r, cx + .25 * r, cy - .85 * r, cx - .25 * r, cy - .85 * r)
-        L(cx, cy + .55 * r, cx + .3 * r, cy - .55 * r)
-        c.create_oval(cx + .15 * r, cy - .3 * r, cx + .4 * r, cy - .05 * r, fill=col, outline=col)
-    elif name == "mod":
-        poly(cx, cy - .85 * r, cx + .75 * r, cy, cx + .32 * r, cy, cx + .32 * r, cy + .75 * r,
-             cx - .32 * r, cy + .75 * r, cx - .32 * r, cy, cx - .75 * r, cy)
-    elif name == "rec":
-        c.create_oval(cx - .65 * r, cy - .65 * r, cx + .65 * r, cy + .65 * r, fill=RED, outline=RED)
-    elif name == "stop":
-        box(-.6, -.6, .6, .6, fill=col)
-    elif name == "rec_session":
-        c.create_oval(cx - .75 * r, cy - .75 * r, cx + .75 * r, cy + .75 * r, outline=RED, width=lw * 1.4)
-        c.create_oval(cx - .3 * r, cy - .3 * r, cx + .3 * r, cy + .3 * r, fill=RED, outline=RED)
-    elif name == "mute":
-        poly(cx - .85 * r, cy - .28 * r, cx - .45 * r, cy - .28 * r, cx, cy - .7 * r, cx, cy + .7 * r, cx - .45 * r, cy + .28 * r, cx - .85 * r, cy + .28 * r)
-        L(cx + .25 * r, cy - .35 * r, cx + .85 * r, cy + .35 * r)
-        L(cx + .25 * r, cy + .35 * r, cx + .85 * r, cy - .35 * r)
-    elif name == "solo":
-        c.create_arc(cx - .72 * r, cy - .8 * r, cx + .72 * r, cy + .6 * r, start=0, extent=180, style="arc", outline=col, width=lw)
-        box(-.85, -.05, -.45, .65, fill=col)
-        box(.45, -.05, .85, .65, fill=col)
-    elif name in ("loop",):
-        _arc_arrow(c, cx, cy, .85 * r, .55 * r, 40, 290, col, lw)
-    elif name == "punch":
-        L(cx - .55 * r, cy - .7 * r, cx - .85 * r, cy - .7 * r, cx - .85 * r, cy + .7 * r, cx - .55 * r, cy + .7 * r)
-        L(cx + .55 * r, cy - .7 * r, cx + .85 * r, cy - .7 * r, cx + .85 * r, cy + .7 * r, cx + .55 * r, cy + .7 * r)
-        c.create_oval(cx - .3 * r, cy - .3 * r, cx + .3 * r, cy + .3 * r, fill=RED, outline=RED)
-    elif name == "views":
-        for i in range(2):
-            for j in range(2):
-                box(-.9 + i * .42, -.45 + j * .5, -.58 + i * .42, -.1 + j * .5)
-        for j in range(3):
-            L(cx + .2 * r, cy - .45 * r + j * .45 * r, cx + .9 * r, cy - .45 * r + j * .45 * r)
-    elif name == "device":
-        box(-.85, -.6, .85, .6)
-        L(cx - .45 * r, cy - .6 * r, cx - .45 * r, cy + .6 * r)
-        c.create_oval(cx + .1 * r, cy - .25 * r, cx + .6 * r, cy + .25 * r, outline=col, width=lw)
-    elif name in ("prev", "next"):
-        d = -1 if name == "prev" else 1
-        L(cx - d * .85 * r, cy - .6 * r, cx - d * .85 * r, cy + .6 * r)
-        for k in (0, 1):
-            x = cx - d * .5 * r + d * k * .65 * r
-            poly(x + d * .6 * r, cy, x, cy - .55 * r, x, cy + .55 * r, fill=col)
-    elif name == "play":
-        poly(cx - .5 * r, cy - .75 * r, cx + .75 * r, cy, cx - .5 * r, cy + .75 * r, fill=col)
-    elif name == "continue":
-        L(cx - .75 * r, cy - .7 * r, cx - .75 * r, cy + .7 * r)
-        poly(cx - .35 * r, cy - .7 * r, cx + .8 * r, cy, cx - .35 * r, cy + .7 * r, fill=col)
-    elif name == "undo":
-        _arc_arrow(c, cx, cy + .1 * r, .7 * r, .6 * r, 110, 250, col, lw)
-    elif name == "redo":
-        _arc_arrow(c, cx, cy + .1 * r, .7 * r, .6 * r, 70, -250, col, lw)
-    elif name == "wrong":
-        c.create_oval(cx - .8 * r, cy - .8 * r, cx + .8 * r, cy + .8 * r, outline=col, width=lw)
-        L(cx - .35 * r, cy - .35 * r, cx + .35 * r, cy + .35 * r)
-        L(cx - .35 * r, cy + .35 * r, cx + .35 * r, cy - .35 * r)
-    elif name == "spark":  # generic spark, drawn here (not any brand mark)
+    if name == "spark":
         for k in range(8):
             t = _m.radians(k * 45 + 10)
             ln = .85 if k % 2 == 0 else .6
             c.create_line(cx + .12 * r * _m.cos(t), cy - .12 * r * _m.sin(t), cx + ln * r * _m.cos(t), cy - ln * r * _m.sin(t),
                           fill=AMBER, width=lw * 1.6, capstyle="round")
-    elif name in ("scroll_h", "scroll_v"):
-        if name == "scroll_h":
-            L(cx - .85 * r, cy, cx + .85 * r, cy)
-            _arrowhead(c, cx + .9 * r, cy, 1, 0, lw * 2.6, col)
-            _arrowhead(c, cx - .9 * r, cy, -1, 0, lw * 2.6, col)
-        else:
-            L(cx, cy - .85 * r, cx, cy + .85 * r)
-            _arrowhead(c, cx, cy - .9 * r, 0, -1, lw * 2.6, col)
-            _arrowhead(c, cx, cy + .9 * r, 0, 1, lw * 2.6, col)
-    elif name == "h_playhead":
-        L(cx, cy - .5 * r, cx, cy + .85 * r)
-        poly(cx - .45 * r, cy - .85 * r, cx + .45 * r, cy - .85 * r, cx, cy - .35 * r, fill=col)
-    elif name == "h_track":
-        for j, y in enumerate((-.6, -.1, .4)):
-            box(-.85, y, .85, y + .35, fill=col if j == 1 else None)
-    elif name == "h_volume":
-        L(cx, cy - .85 * r, cx, cy + .85 * r)
-        box(-.45, -.15, .45, .35, fill=col)
-    elif name == "h_pan":
-        c.create_oval(cx - .6 * r, cy - .6 * r, cx + .6 * r, cy + .6 * r, outline=col, width=lw)
-        L(cx, cy, cx + .3 * r, cy - .45 * r)
-        L(cx - .85 * r, cy + .8 * r, cx - .85 * r, cy + .45 * r)
-        L(cx + .85 * r, cy + .8 * r, cx + .85 * r, cy + .45 * r)
-    elif name in ("h_loop_move", "h_loop_start", "h_loop_end"):
-        lb = lambda x, d: L(cx + (x + d * .3) * r, cy - .65 * r, cx + x * r, cy - .65 * r, cx + x * r, cy + .1 * r, cx + (x + d * .3) * r, cy + .1 * r)
-        if name != "h_loop_end":
-            lb(-.85, 1)
-        if name != "h_loop_start":
-            lb(.85, -1)
-        L(cx - .6 * r, cy + .6 * r, cx + .6 * r, cy + .6 * r)
-        _arrowhead(c, cx + .65 * r, cy + .6 * r, 1, 0, lw * 2.6, col)
-        _arrowhead(c, cx - .65 * r, cy + .6 * r, -1, 0, lw * 2.6, col)
-    else:
+        return True
+    polys = ICONS.get(name)
+    if not polys:
         return False
+    k = r * 2.2 / 24.0
+    col = RED if name in _RED_ICONS else col
+    fill = {"red": RED, "fg": col}.get(_FILLED.get(name))
+    for closed, pts in polys:
+        flat = []
+        for x, y in pts:
+            flat += [cx + (x - 12) * k, cy + (y - 12) * k]
+        if fill and closed:
+            c.create_polygon(*flat, fill=fill, outline=fill, width=max(1, lw * .5), joinstyle="round")
+        else:
+            c.create_line(*flat, fill=col, width=max(2, lw * 1.2), capstyle="round", joinstyle="round")
     return True
 
 

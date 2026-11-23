@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.1
+- Pad map icons replaced with Lucide icons (ISC license, docs/LUCIDE_LICENSE.txt), flattened to vectors in assistant/icons_data.py.
+
 ## 1.10.0
 - Pad map uses vector icons instead of text (mic, record, loop, mute/solo headphones, transport, undo/redo, etc.), drawn in code so they scale. The dial shows one scroll icon (horizontal arrow, vertical with MOD) instead of two labels; while a button is held it shows a short caption (e.g. bar / beat / ±5 BPM). Text remains as a fallback.
 
