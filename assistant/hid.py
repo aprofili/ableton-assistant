@@ -38,8 +38,9 @@ class RAWINPUTHEADER(ctypes.Structure):
 
 
 class HidTap:
-    def __init__(self, on_report=None):
-        self.on_report = on_report  # on_report(device_name, bytes)
+    def __init__(self, on_report=None, on_key=None):
+        self.on_report = on_report
+        self.on_key = on_key  # on_report(device_name, bytes)
         self._names = {}
         self._seen = {}
         self._count = 0
@@ -160,10 +161,22 @@ class HidTap:
         buf = ctypes.create_string_buffer(sz.value)
         u.GetRawInputData(lparam, RID_INPUT, buf, ctypes.byref(sz), hs)
         hdr = RAWINPUTHEADER.from_buffer(buf)
-        if hdr.dwType != RIM_TYPEHID:
-            return
         name = self._devname(hdr.hDevice)
         if "VID_28BD" not in name.upper():
+            return
+        if hdr.dwType == 1:  # keyboard: the pad's own default keystrokes (no driver)
+            import struct
+            make, flags, _r, vkey, msg = struct.unpack_from("<HHHHI", buf.raw, hs)
+            self._dump(f"key {name[-40:-30]} vk=0x{vkey:02X} make=0x{make:02X} flags={flags} msg=0x{msg:X}")
+            if self.on_key:
+                self.on_key(name, vkey, not (flags & 1), make)
+            return
+        if hdr.dwType == 0:  # mouse (dial wheel in default mode)
+            import struct
+            _f, _p, bflags, bdata = struct.unpack_from("<HHHh", buf.raw, hs)
+            self._dump(f"mouse {name[-40:-30]} buttons=0x{bflags:04X} data={bdata}")
+            return
+        if hdr.dwType != RIM_TYPEHID:
             return
         off = hs
         size_hid, count = ctypes.c_ulong.from_buffer(buf, off).value, ctypes.c_ulong.from_buffer(buf, off + 4).value
