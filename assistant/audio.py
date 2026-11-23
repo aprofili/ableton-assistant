@@ -8,7 +8,23 @@ import sounddevice as sd
 TARGET_SR = 16000
 
 
-def list_input_devices():
+_pa_lock = threading.Lock()
+
+
+def refresh_devices():
+    """Re-scan audio hardware. PortAudio caches its device list at init, so a newly plugged microphone only
+    shows up after a terminate/initialize. Call only while no stream is open."""
+    with _pa_lock:
+        try:
+            sd._terminate()
+            sd._initialize()
+        except Exception:
+            pass
+
+
+def list_input_devices(refresh=False):
+    if refresh:
+        refresh_devices()
     hostapis = sd.query_hostapis()
     out = []
     for i, d in enumerate(sd.query_devices()):
@@ -41,6 +57,7 @@ class Recorder:
         self._chunks = []
         self._stream = None
         self._lock = threading.Lock()
+        self.spec = None  # saved mic ({"name", "hostapi"} or None); re-resolved on every start since indices shift on replug
         self.on_auto_stop = None  # callback when silence endpointing ends a recording
         self._speech_seen = False
         self._last_voice = 0.0
@@ -54,11 +71,24 @@ class Recorder:
         self._chunks = []
         self._speech_seen = False
         self._started = self._last_voice = time.time()
-        info = sd.query_devices(self.device, "input")
-        self._sr = int(info["default_samplerate"])
-        self._stream = sd.InputStream(device=self.device, channels=1, samplerate=self._sr,
-                                      dtype="float32", callback=self._cb)
-        self._stream.start()
+        with _pa_lock:
+            dev = self.device
+            if self.spec:
+                try:
+                    dev = resolve_device(self.spec)
+                except RuntimeError:
+                    pass
+            try:
+                info = sd.query_devices(dev, "input")
+            except Exception:  # device vanished (unplugged): rescan and fall back to the system default
+                sd._terminate()
+                sd._initialize()
+                dev = None
+                info = sd.query_devices(None, "input")
+            self._sr = int(info["default_samplerate"])
+            self._stream = sd.InputStream(device=dev, channels=1, samplerate=self._sr,
+                                          dtype="float32", callback=self._cb)
+            self._stream.start()
 
     def _cb(self, indata, frames, t, status):
         chunk = indata[:, 0].copy()

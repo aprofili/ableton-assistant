@@ -87,6 +87,7 @@ class Assistant:
                 self.notify("Saved microphone not found; using the system default.", "error")
                 device = None
             self.rec = Recorder(device, self.cfg["silence_seconds"], self.cfg["max_record_seconds"])
+            self.rec.spec = self.cfg["input_device"] if isinstance(self.cfg["input_device"], dict) else None
             if not self.osc.ping():
                 log.info("WARNING: no reply from Ableton. Enable AbletonOSC in Live's Preferences > Link, Tempo & MIDI.")
                 self.notify("No reply from Ableton. Is AbletonOSC enabled in Live's preferences?", "error")
@@ -347,6 +348,7 @@ class Assistant:
         cfgmod.save_user(input_device=spec)
         self.cfg["input_device"] = spec
         if self.rec is not None and not self._recording:
+            self.rec.spec = spec if isinstance(spec, dict) else None
             try:
                 self.rec.device = resolve_device(spec)
             except RuntimeError as e:
