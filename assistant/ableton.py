@@ -341,6 +341,13 @@ class Actions:
         prop = a["prop"]  # "mute" | "solo"
         ti = int(self.osc.query("/live/view/get/selected_track", timeout=0.5)[-1])
         cur = int(self.osc.query("/live/track/get/" + prop, ti, timeout=0.5)[-1])
+        if prop == "solo" and not cur:  # exclusive solo: clear every other track first
+            try:
+                for i in range(len(self._track_names())):
+                    if i != ti:
+                        self.osc.send("/live/track/set/solo", i, 0)
+            except Exception:
+                pass
         self.osc.send("/live/track/set/" + prop, ti, 0 if cur else 1)
         try:
             name = self._track_names()[ti]

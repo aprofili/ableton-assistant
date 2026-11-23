@@ -467,6 +467,24 @@ class PadTests(unittest.TestCase):
         self.assertTrue(pc.hid_active())
 
 
+    def test_exclusive_solo(self):
+        class Osc:
+            def __init__(self):
+                self.sent = []
+
+            def query(self, addr, *a, timeout=0):
+                if addr.endswith("track_names"):
+                    return ("A", "B", "C")
+                if addr.endswith("selected_track"):
+                    return (1,)
+                return (0, 0)
+
+            def send(self, addr, *a):
+                self.sent.append((addr,) + a)
+        o = Osc()
+        Actions(o, {}).run([{"type": "track_toggle", "prop": "solo"}])
+        self.assertEqual(o.sent, [("/live/track/set/solo", 0, 0), ("/live/track/set/solo", 2, 0), ("/live/track/set/solo", 1, 1)])
+
     def test_icons(self):
         pad = self._pad_mod()
         self.assertEqual(pad.icon_for("b9", {"playing": True})[0], "stop")
