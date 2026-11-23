@@ -515,22 +515,27 @@ class PadTests(unittest.TestCase):
             state = "idle"
             actions = osc = trigger = None
 
-        pc = pad.PadController({}, Asst())
+        pc = pad.PadController({"pad": {"hold_delay": 0.15}}, Asst())
         calls, nudges = [], []
         pc.handle = lambda pid, repeat=False: calls.append(pid)
         pc._nudge = lambda d, kind="tempo", coarse=False, src="": nudges.append(d)
         rep = lambda lo=0, hi=0, dial=0: bytes([2, 0xF0, lo, hi, 0, 0, 0, dial, 0, 0, 0, 0])
-        pc.hid_report(rep(lo=0x02))         # K2 down: nothing yet
-        self.assertEqual(calls, [])
-        pc.hid_report(rep())                # tap -> taps tempo on release
+        pc.hid_report(rep(lo=0x02))         # K2 down, released before the delay: a tap
+        pc.hid_report(rep())
         self.assertEqual(calls, ["b2"])
+        time.sleep(0.3)                     # the pending timer must not arm after release
+        self.assertIsNone(pc._hold_btn)
         pc.hid_report(rep(lo=0x02))
+        self.assertIsNone(pc._hold_btn)     # not yet
+        time.sleep(0.3)
+        self.assertEqual(pc._hold_btn, "b2")
         pc.handle = pad.PadController.handle.__get__(pc)  # real handle for the dial branch
         pc.hid_report(rep(lo=0x02, dial=1))
         pc.hid_report(rep(lo=0x02, dial=2))
-        pc.hid_report(rep())                # release after scrolling: no toggle
+        pc.hid_report(rep())                # release after hold mode: no tap
         self.assertEqual(nudges, [1, -1])
         self.assertEqual(calls, ["b2"])
+        self.assertIsNone(pc._hold_btn)
 
 
 class MacroTests(unittest.TestCase):
