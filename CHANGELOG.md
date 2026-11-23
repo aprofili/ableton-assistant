@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.2
+- Dictation to Claude uses its own Whisper prompt (names like Claude, GitHub) instead of the Ableton command prompt.
+
 ## 1.7.0
 - Driverless pad: the assistant sends the XPPen raw-mode init packet itself (child process, timeout) and re-sends it on reconnect / when the pad is seen in keyboard mode.
 - Dial press (or click on the map's dial centre) = talk to Claude: press to record, press again to stop; the transcript is typed into the Claude desktop app and submitted. Config: `pad.claude_exe` (default claude.exe), `pad.claude_submit` (default true).

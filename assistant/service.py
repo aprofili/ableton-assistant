@@ -10,6 +10,7 @@ from .ableton import AbletonOSC, Actions
 from .app import beep, handle_text
 from .shortcuts import Shortcuts
 from .overlay import Overlay
+from .stt import DICTATION_PROMPT
 from .pad import PadController
 from .padmap import PadMap
 from .pad import MOD as MOD_KEY
@@ -189,7 +190,7 @@ class Assistant:
         with self.busy:
             try:
                 t0 = time.time()
-                text = self.stt.transcribe(audio)
+                text = self.stt.transcribe(audio, DICTATION_PROMPT if to_claude else None)
                 log.info("heard %r (%.2fs)%s", text, time.time() - t0, " [to Claude]" if to_claude else "")
                 if not text:
                     return
