@@ -122,9 +122,12 @@ def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None, on_event=
             except Exception:
                 log.exception("Macro learning failed")
     log.info("done in %.2fs", time.time() - t0)
-    if src == "claude" and on_event:
+    if on_event and not dry:
         from .describe import describe
-        on_event("api_done", describe(acts))
+        if src == "claude":
+            on_event("api_done", describe(acts))
+        else:
+            on_event("local_done", (describe(acts), text))
     return Outcome(src, acts, text, before, macro_id)
 
 

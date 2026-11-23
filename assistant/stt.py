@@ -1,6 +1,6 @@
 """Local speech-to-text with faster-whisper."""
 
-PROMPT = ("Ableton Live commands: loop bars 5 to 9, metronome on, metronome off, press play, stop, "
+PROMPT = ("Ableton Live commands: turn looping on, turn looping off, loop on, loop off, loop bars 5 to 9, metronome on, metronome off, press play, stop, "
           "count in two bars, go to bar 17, next section, previous section, chorus, verse, bridge, "
           "intro, outro, tempo 120, locator, arrangement, session view.")
 
