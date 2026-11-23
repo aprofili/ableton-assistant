@@ -173,7 +173,30 @@ class Assistant:
             kb.release(Key.enter)
         self.notify(f"→ Claude: “{text}”")
         beep(self.cfg, "ok")
+        if pc.get("claude_follow_bottom", True) and pc.get("claude_submit", True):
+            threading.Thread(target=self._follow_bottom, args=(hwnd, float(pc.get("claude_follow_seconds", 240))),
+                             daemon=True, name="claude-follow").start()
         return True
+
+    def _follow_bottom(self, hwnd, seconds):
+        """Keep the Claude chat scrolled to the newest text while the reply streams in (for use away from the
+        screen). Stops when time is up, another window takes focus, or the mouse is moved by hand."""
+        import ctypes
+        from ctypes import wintypes
+        from .pad import Scroller
+        u = ctypes.windll.user32
+        r = wintypes.RECT()
+        u.GetWindowRect(hwnd, ctypes.byref(r))
+        x, y = int((r.left + r.right) / 2), int(r.top + (r.bottom - r.top) * 0.4)
+        u.SetCursorPos(x, y)
+        end = time.time() + seconds
+        pt = wintypes.POINT()
+        while time.time() < end:
+            time.sleep(1.0)
+            u.GetCursorPos(ctypes.byref(pt))
+            if abs(pt.x - x) > 6 or abs(pt.y - y) > 6 or u.GetForegroundWindow() != hwnd:
+                return
+            Scroller._send(-120 * 40, True)
 
     def _on_stop(self):
         if not self._recording:
