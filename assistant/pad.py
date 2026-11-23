@@ -104,19 +104,57 @@ class Scroller:
         return self._mult
 
     def scroll(self, direction, vertical):
-        """direction: +1 = right / down, -1 = left / up."""
+        """direction: +1 = right / down, -1 = left / up. Returns immediately: the keyboard hook thread
+        must never block (window enumeration + SendInput there made scrolling lag), so the work is
+        queued to a worker that merges ticks that arrive together into one wheel event."""
         if sys.platform != "win32":
             return False
         delta = self.step * self._mult_for(direction)
-        if not self._over_live():
-            return False
-        self._send(-delta * direction if vertical else delta * direction, vertical)
+        if self._q is None:
+            self._q = queue.Queue()
+            threading.Thread(target=self._worker, daemon=True, name="pad-scroll").start()
+        self._q.put((direction * delta, vertical))
         return True
 
-    def _over_live(self):
+    _q = None
+    _live = (0.0, None)
+
+    def _worker(self):
+        while True:
+            amount, vertical = self._q.get()
+            try:
+                while True:  # merge everything already waiting (same axis)
+                    try:
+                        a2, v2 = self._q.get(timeout=0.004)
+                    except queue.Empty:
+                        break
+                    if v2 != vertical:
+                        self._emit(amount, vertical)
+                        amount, vertical = a2, v2
+                    else:
+                        amount += a2
+                self._emit(amount, vertical)
+            except Exception:
+                log.exception("scroll failed")
+
+    def _emit(self, amount, vertical):
+        if not self._over_live():
+            return
+        self._send(-amount if vertical else amount, vertical)
+
+    def _live_hwnd(self):
         from .keys import find_ableton_hwnd
+        t, h = self._live
+        now = time.time()
+        if h and now - t < 3.0 and ctypes.windll.user32.IsWindow(h):
+            return h
+        h = find_ableton_hwnd()
+        self._live = (now, h)
+        return h
+
+    def _over_live(self):
         u = ctypes.windll.user32
-        live = find_ableton_hwnd()
+        live = self._live_hwnd()
         if not live:
             return False
 

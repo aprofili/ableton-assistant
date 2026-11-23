@@ -3,6 +3,7 @@
 ## 1.4.1
 - Pad keys are now Ctrl+Alt+Shift+F1..F12 (single-key remaps still work); modifier-aware matching. Dial press is not programmable on the ACK05 driver.
 - Fix: pad modifiers no longer leak into wheel scrolling (Alt+wheel resized tracks).
+- Fix: dial scroll lag (window search and SendInput ran on the keyboard hook thread); now queued to a worker, merged, with the Live window cached.
 - Pad map redrawn to match the ACK05 shape.
 
 ## 1.4.0
