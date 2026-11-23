@@ -125,6 +125,9 @@ def _match(seg):
     if re.search(r"\b(?:go to|jump to|back to|from) (?:the )?(?:top|start|beginning)\b", seg):
         return [{"type": "goto_bar", "bar": 1}] + play
 
+    if re.search(r"\b(?:arm|armed|arms|arming|disarm\w*|unarm\w*|dearm\w*|de arm\w*)\b", seg) and re.search(r"\b(?:track|recording|record)\b", seg):
+        off = re.search(r"\b(?:disarm\w*|unarm\w*|dearm\w*|de arm\w*|off|disable)\b", seg)  # plain "arm" = on
+        return [{"type": "arm_track", "on": not off}]
     if re.search(r"\b(?:metronome|click)\b", seg):
         return [{"type": "metronome", "on": _on_off(seg)}]
 

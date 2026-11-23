@@ -2,7 +2,7 @@
 
 PROMPT = ("Ableton Live commands: turn looping on, turn looping off, loop on, loop off, loop bars 5 to 9, metronome on, metronome off, press play, stop, "
           "count in two bars, go to bar 17, next section, previous section, chorus, verse, bridge, "
-          "intro, outro, tempo 120, locator, arrangement, session view.")
+          "arm this track for recording, disarm this track, de-arm this track, intro, outro, tempo 120, locator, arrangement, session view.")
 
 
 DICTATION_PROMPT = ("Chat with Claude about the Ableton assistant: Claude, Claude Code, GitHub, pull request, "
