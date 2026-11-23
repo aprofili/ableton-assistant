@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.5.4
+- Pad map is clickable: buttons and the dial (left/right half) do the same action as the pad. Clicking MOD toggles it (sticky); the physical pad still uses hold.
+
 ## 1.5.3
 - Tray menu regrouped: Settings / Updates / Tools submenus; top level keeps Listening, Pad map, Last command wrong, Microphone, Restart, Quit.
 - Raw HID tap for the XP-Pen pad (logs/pad_hid.log) as groundwork for bypassing the driver.
