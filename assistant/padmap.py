@@ -273,7 +273,7 @@ class PadMap:
         rb = r * 0.5
         dp = snap["dial_press"]
         ell(rb, fill=KEYON if dp["active"] else ("#2a3440" if dp["pressed"] else "#0d1014"), outline="#3a424d", width=ow)
-        ir = min(rb * sx, rb * sy) * 1.0
+        ir = min(rb * sx, rb * sy) * 0.75
         if not (dp.get("icon") and _icon(c, dp["icon"], X(cx), Y(cy), ir, FG, max(2, ir * 0.1))):
             self._ftext(X(cx), Y(cy), dp["label"], 2 * rb * sx * 0.85, 2 * rb * sy * 0.5, FG)
         ccw, cw = snap["dial_ccw"], snap["dial_cw"]
