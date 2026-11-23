@@ -1,3 +1,4 @@
+import math
 """AbletonOSC client plus the action executor.
 
 AbletonOSC (https://github.com/ideoforms/AbletonOSC) listens on UDP 11000 and
@@ -266,6 +267,74 @@ class Actions:
         new = max(20, min(999, round(cur) + int(delta)))
         self.osc.send("/live/song/set/tempo", float(new))
         return new
+
+    # ---- hold + dial adjustments (pad) ----------------------------------
+    def _bar_len(self):
+        try:
+            num = float(self.osc.query("/live/song/get/signature_numerator", timeout=0.5)[0])
+            den = float(self.osc.query("/live/song/get/signature_denominator", timeout=0.5)[0])
+            return num * 4.0 / den
+        except Exception:
+            return 4.0
+
+    def hold_adjust(self, kind, delta, coarse=False):
+        """Apply a hold+dial step. delta = signed clicks; coarse = MOD held. Returns (title, subtitle)."""
+        q = lambda addr, *a: self.osc.query(addr, *a, timeout=0.5)
+        if kind == "tempo":
+            return "Tempo %g" % self.nudge_tempo(delta * (5 if coarse else 1)), ""
+        if kind == "playhead":
+            bpb = self._bar_len()
+            unit = 1.0 if coarse else bpb
+            cur = float(q("/live/song/get/current_song_time")[0]) / unit
+            t = (math.floor(cur + 1e-6) if delta > 0 else math.ceil(cur - 1e-6)) + delta
+            new = max(0.0, t * unit)
+            self.osc.send("/live/song/set/current_song_time", float(new))
+            return "Bar %d.%d" % (new // bpb + 1, new % bpb + 1), "playhead, by %s" % ("beat" if coarse else "bar")
+        if kind in ("loop_move", "loop_start", "loop_end"):
+            bpb = self._bar_len()
+            unit = 1.0 if coarse else bpb
+            st = float(q("/live/song/get/loop_start")[0])
+            ln = float(q("/live/song/get/loop_length")[0])
+            end = st + ln
+            if kind == "loop_move":
+                st = max(0.0, st + delta * unit)
+            elif kind == "loop_start":
+                st = max(0.0, min(end - unit, st + delta * unit))
+                ln = end - st
+                self.osc.send("/live/song/set/loop_start", float(st))
+                self.osc.send("/live/song/set/loop_length", float(ln))
+                return "Loop %s-%s" % (self._fmt_bar(st, bpb), self._fmt_bar(st + ln, bpb)), "start"
+            else:
+                ln = max(unit, ln + delta * unit)
+            self.osc.send("/live/song/set/loop_start", float(st))
+            self.osc.send("/live/song/set/loop_length", float(ln))
+            return "Loop %s-%s" % (self._fmt_bar(st, bpb), self._fmt_bar(st + ln, bpb)), "moved" if kind == "loop_move" else "end"
+        if kind == "track":
+            n = len(self._track_names())
+            cur = int(q("/live/view/get/selected_track")[-1])
+            new = max(0, min(n - 1, cur + delta))
+            self.osc.send("/live/view/set/selected_track", new)
+            name = self._track_names()[new]
+            return name, "track %d of %d" % (new + 1, n)
+        if kind in ("volume", "pan"):
+            ti = int(q("/live/view/get/selected_track")[-1])
+            name = self._track_names()[ti]
+            if kind == "volume":
+                cur = float(q("/live/track/get/volume", ti)[-1])
+                new = max(0.0, min(1.0, cur + delta * (0.1 if coarse else 0.02)))
+                self.osc.send("/live/track/set/volume", ti, float(new))
+                return "%s vol %d%%" % (name, round(new * 100)), ""
+            cur = float(q("/live/track/get/panning", ti)[-1])
+            new = max(-1.0, min(1.0, cur + delta * (0.25 if coarse else 0.05)))
+            self.osc.send("/live/track/set/panning", ti, float(new))
+            side = "C" if abs(new) < 0.01 else ("%dL" % round(-new * 50) if new < 0 else "%dR" % round(new * 50))
+            return "%s pan %s" % (name, side), ""
+        raise ValueError(kind)
+
+    @staticmethod
+    def _fmt_bar(beats, bpb):
+        b = beats / bpb + 1
+        return ("%d" % b) if abs(b - round(b)) < 1e-6 else ("%.2f" % b)
 
     def a_undo(self, a):
         self.osc.send("/live/song/undo")

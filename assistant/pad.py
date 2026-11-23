@@ -58,17 +58,38 @@ MOD_ACTIONS = {
 VMOD_ACTIONS = MOD_ACTIONS  # old name
 # Buttons that, when held (without MOD) while turning the dial, change something instead of scrolling.
 # A plain tap still runs the button's normal action (on release).
-HOLD_SCROLL = {"b2": "tempo"}
+HOLD_SCROLL = {"b2": "tempo", "b9": "playhead", "b4": "track", "b5": "volume", "b7": "pan",
+               "b6": "loop_move", "b8": "loop_start", "b10": "loop_end"}
 
 NAMES = {"b1": "K1", "b2": "K2", "b3": "K3", "b4": "K4", "b5": "K5", "b6": "K6", "b7": "K7",
          "b8": "K8", "b9": "K9", "b10": "K10", "dial_cw": "Dial CW", "dial_ccw": "Dial CCW",
          "dial_press": "Dial press"}
 
 
+# hold+dial wording, shown only while the button is held: kind -> (button title, cw, ccw, cw mod, ccw mod)
+HOLD_LABELS = {
+    "tempo": ("Tempo\n(turn dial)", "Tempo +1", "Tempo -1", "Tempo +5", "Tempo -5"),
+    "playhead": ("Playhead\n(turn dial)", "Forward 1 bar", "Back 1 bar", "Forward 1 beat", "Back 1 beat"),
+    "track": ("Select track\n(turn dial)", "Next track", "Previous track", "Next track", "Previous track"),
+    "volume": ("Volume\n(turn dial)", "Louder", "Quieter", "Louder (big)", "Quieter (big)"),
+    "pan": ("Pan\n(turn dial)", "Pan right", "Pan left", "Pan right (big)", "Pan left (big)"),
+    "loop_move": ("Move loop\n(turn dial)", "Loop later 1 bar", "Loop earlier 1 bar", "Loop later 1 beat", "Loop earlier 1 beat"),
+    "loop_start": ("Loop start\n(turn dial)", "Start later 1 bar", "Start earlier 1 bar", "Start later 1 beat", "Start earlier 1 beat"),
+    "loop_end": ("Loop end\n(turn dial)", "End later 1 bar", "End earlier 1 bar", "End later 1 beat", "End earlier 1 beat"),
+}
+
+
 def label_for(pid, st):
     """(label, active) for a pad input given state st: playing, metronome, loop, record, listening,
     vmod (MOD held), count_in, punch_in, punch_out, session_record."""
     mod = bool(st.get("vmod"))
+    hold = HOLD_SCROLL.get(st.get("hold"))
+    if hold:
+        lab = HOLD_LABELS[hold]
+        if pid == st["hold"]:
+            return lab[0], True
+        if pid in ("dial_cw", "dial_ccw"):
+            return lab[(1 if pid == "dial_cw" else 2) + (2 if mod else 0)], False
     if pid == "b1":
         if mod:
             return "That was\nWRONG", False
@@ -76,7 +97,7 @@ def label_for(pid, st):
     if pid == "b2":
         if mod:
             return ("Metronome\nON" if st.get("metronome") else "Metronome\nOFF"), bool(st.get("metronome"))
-        return "Tap tempo\n(hold+dial:\ntempo)", False
+        return "Tap\ntempo", False
     if pid == "b3":
         return "MOD\n(hold)", mod
     if pid == "b4":
@@ -287,6 +308,7 @@ class PadController:
         st = dict(self.live)
         st["listening"] = self.assistant.state == "listening"
         st["vmod"] = self._mod()
+        st["hold"] = self._hold_btn
         st["listening_claude"] = bool(getattr(self.assistant, "_to_claude", False))
         out = {}
         for pid in self.keys:
@@ -402,37 +424,43 @@ class PadController:
         if pid:
             self.pressed.discard(pid)
 
-    def _nudge(self, delta):
+    def _nudge(self, delta, kind="tempo", coarse=False, src=""):
         """Hold+dial tempo steps: a worker merges ticks and applies them as whole BPM."""
         if self._nq is None:
             self._nq = queue.Queue()
             threading.Thread(target=self._nudge_worker, daemon=True, name="pad-nudge").start()
-        self._nq.put(delta)
+        self._nq.put((kind, delta, coarse, src))
 
     def _nudge_worker(self):
         while True:
-            d = self._nq.get()
+            items = [self._nq.get()]
             try:
                 while True:
                     try:
-                        d += self._nq.get(timeout=0.005)
+                        items.append(self._nq.get(timeout=0.005))
                     except queue.Empty:
                         break
                 a = self.assistant.actions
-                if a is not None and d:
-                    bpm = a.nudge_tempo(d)
+                merged = {}
+                for kind, d, coarse, src in items:
+                    k = (kind, coarse, src)
+                    merged[k] = merged.get(k, 0) + d
+                for (kind, coarse, src), d in merged.items():
+                    if a is None or not d:
+                        continue
+                    title, sub = a.hold_adjust(kind, d, coarse)
                     ov = getattr(self.assistant, "overlay", None)
                     if ov:
-                        ov.result(True, f"Tempo {bpm:g}", "hold K5 + turn dial")
+                        ov.result(True, title, sub or ("hold %s + turn dial" % src))
             except Exception as e:
-                log.info("Tempo nudge failed: %s", e)
+                log.info("Hold+dial adjust failed: %s", e)
 
     def handle(self, pid, repeat=False):
         if pid in ("dial_cw", "dial_ccw"):
             direction = 1 if pid == "dial_cw" else -1
-            if self._hold_btn and not self._mod():
+            if self._hold_btn:
                 self._hold_used = True
-                self._nudge(direction)
+                self._nudge(direction, HOLD_SCROLL[self._hold_btn], self._mod(), NAMES.get(self._hold_btn, ""))
                 return
             try:
                 self.scroller.scroll(direction, vertical=self._mod())

@@ -221,9 +221,9 @@ class PadMap:
             self._text(X((a0 + a1) / 2), Y((b0 + b1) / 2 + 3), k["label"], s * (8 if (a1 - a0) < 60 else 11), FG)
         if snap.get("_last"):
             c.create_text(w / 2, Y(y1) + 28 * s, text=snap["_last"], fill=MUTED, font=("Segoe UI", max(9, int(s * 7))))
-        status = "Connected to Live" if snap["_connected"] else "Waiting for Ableton (is AbletonOSC enabled?)"
-        c.create_text(w / 2, h - 12, text=status + "   |   click buttons to use them (MOD toggles)   |   F11: fullscreen", fill=GREEN if snap["_connected"] else AMBER,
-                      font=("Segoe UI", 10))
+        ok = snap["_connected"]  # connection to Live: green check / red cross
+        c.create_text(w - 18, h - 16, text="\u2713" if ok else "\u2717", fill=GREEN if ok else RED,
+                      font=("Segoe UI", 16, "bold"))
 
     def _click(self, e):
         try:

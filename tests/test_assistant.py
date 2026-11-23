@@ -467,6 +467,37 @@ class PadTests(unittest.TestCase):
         self.assertTrue(pc.hid_active())
 
 
+    def test_hold_labels_and_adjust(self):
+        pad = self._pad_mod()
+        self.assertEqual(pad.label_for("dial_cw", {})[0], "Scroll right")
+        self.assertEqual(pad.label_for("dial_cw", {"hold": "b9"})[0], "Forward 1 bar")
+        self.assertEqual(pad.label_for("dial_ccw", {"hold": "b9", "vmod": True})[0], "Back 1 beat")
+        self.assertEqual(pad.label_for("b9", {"hold": "b9"}), ("Playhead\n(turn dial)", True))
+        self.assertEqual(pad.label_for("b4", {"hold": "b9"})[0], "Record")
+
+        class Osc:
+            def __init__(self):
+                self.v = {"signature_numerator": 4, "signature_denominator": 4, "current_song_time": 6.0,
+                          "loop_start": 8.0, "loop_length": 16.0}
+                self.sent = []
+
+            def query(self, addr, *a, timeout=0):
+                return (self.v[addr.rsplit("/", 1)[1]],)
+
+            def send(self, addr, *a):
+                self.sent.append((addr,) + a)
+        o = Osc()
+        act = Actions(o, {})
+        self.assertEqual(act.hold_adjust("playhead", 1)[0], "Bar 3.1")      # 6 -> next bar line (8)
+        self.assertEqual(act.hold_adjust("playhead", -1)[0], "Bar 2.1")     # 6 -> bar line 4
+        self.assertEqual(act.hold_adjust("playhead", 1, True)[0], "Bar 2.4")  # next beat: 7
+        act.hold_adjust("loop_end", 1)
+        self.assertEqual(o.sent[-1], ("/live/song/set/loop_length", 20.0))
+        act.hold_adjust("loop_start", 1)
+        self.assertEqual(o.sent[-2:], [("/live/song/set/loop_start", 12.0), ("/live/song/set/loop_length", 12.0)])
+        act.hold_adjust("loop_move", -1)
+        self.assertEqual(o.sent[-2], ("/live/song/set/loop_start", 4.0))
+
     def test_hold_k2_dial_changes_tempo_tap_toggles(self):
         pad = self._pad_mod()
 
@@ -477,7 +508,7 @@ class PadTests(unittest.TestCase):
         pc = pad.PadController({}, Asst())
         calls, nudges = [], []
         pc.handle = lambda pid, repeat=False: calls.append(pid)
-        pc._nudge = lambda d: nudges.append(d)
+        pc._nudge = lambda d, kind="tempo", coarse=False, src="": nudges.append(d)
         rep = lambda lo=0, hi=0, dial=0: bytes([2, 0xF0, lo, hi, 0, 0, 0, dial, 0, 0, 0, 0])
         pc.hid_report(rep(lo=0x02))         # K2 down: nothing yet
         self.assertEqual(calls, [])
