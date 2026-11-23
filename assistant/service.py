@@ -96,11 +96,12 @@ class Assistant:
             t = self.cfg["trigger"]
             self.trigger = Trigger(t["keys"], t["mode"], self._on_start, self._on_stop)
             if self.pad.enabled:
-                self.trigger.add_combo(self.pad.voice_key, suppress=lambda: MOD_KEY in self.pad.pressed)
+                self.trigger.add_combo(self.pad.voice_key, suppress=lambda: MOD_KEY in self.pad.pressed or self.pad.hid_active())
+                self.trigger.add_combo("hid_b1", suppress=lambda: self.pad.mouse_mod or MOD_KEY in self.pad.pressed)
                 self.pad.start()
                 self.padmap.restore()
                 from .hid import HidTap
-                self.hid = HidTap()
+                self.hid = HidTap(on_report=lambda name, rep: self.pad.hid_report(rep))
                 self.hid.start()
             self.ready = True
             from . import updater
