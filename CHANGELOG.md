@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.3
+- Fix pad map state flicker (play/pause/play): polled reads no longer overwrite newer pushes or optimistic flips, and the state dict is updated per key instead of replaced.
+
 ## 1.7.2
 - Dictation to Claude uses its own Whisper prompt (names like Claude, GitHub) instead of the Ableton command prompt.
 
