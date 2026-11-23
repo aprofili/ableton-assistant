@@ -252,6 +252,8 @@ class PadController:
         # "focus_only": the press that brings Live forward does nothing else.
         self.focus_mode = pc.get("focus_mode", "focus_and_act")
         self.pressed = set()
+        self._stamp = {}
+        self._hold = {}
         self._hid_seen = 0.0
         self._hid_state = 0
         self.mouse_mod = False  # MOD toggled by clicking the pad map (the physical pad holds MOD instead)
@@ -436,10 +438,22 @@ class PadController:
             key = self._LISTEN.get(addr.rsplit("/", 1)[1])
             if key:
                 self.live[key] = bool(args[0])
+                self._stamp[key] = time.time()
                 self.live_ok = True
 
     def _optimistic(self, acts):
         """Flip the displayed state right away; the real value from Live follows within a few ms."""
+        before = dict(self.live)
+        try:
+            self._optimistic_flip(acts)
+        finally:
+            now = time.time()
+            for k, v in self.live.items():
+                if v != before.get(k):
+                    self._stamp[k] = now
+                    self._hold[k] = now + 0.6  # ignore polled (possibly stale) reads for this key meanwhile
+
+    def _optimistic_flip(self, acts):
         for a in acts:
             t = a.get("type")
             if t in ("playstop", "playpause"):
@@ -485,7 +499,12 @@ class PadController:
                     raise
                 self._unavailable.add(prop)  # e.g. count-in patch missing: don't wait on it again
                 return False
-        self.live = {key: q(prop, key) for prop, key in self._LISTEN.items()}
+        for prop, key in self._LISTEN.items():
+            t0 = time.time()
+            val = q(prop, key)
+            # a push from Live or an optimistic flip since the query began wins over this (older) read
+            if self._stamp.get(key, 0) < t0 and time.time() >= self._hold.get(key, 0):
+                self.live[key] = val
         self.live_ok = True
 
     def _poll(self):
