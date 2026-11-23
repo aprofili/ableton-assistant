@@ -286,8 +286,9 @@ class PadTests(unittest.TestCase):
         osc = AbletonOSC("127.0.0.1", 21010, 21011)
         try:
             act = Actions(osc, {})
-            for pid in ("b9", "b6", "b4", "b2"):
+            for pid in ("b9", "b6", "b4"):
                 act.run(pad.ACTIONS[pid])
+            act.run(pad.MOD_ACTIONS["b8"])     # MOD+K8 = undo
             act.run(pad.MOD_ACTIONS["b9"])     # stopped + MOD -> continue
             live.props["is_playing"] = 1
             act.run(pad.ACTIONS["b9"])         # playing -> stop
@@ -295,9 +296,7 @@ class PadTests(unittest.TestCase):
             act.run(pad.MOD_ACTIONS["b5"])     # count-in 0 -> 1
             for _ in range(4):                 # punch cycle
                 act.run(pad.MOD_ACTIONS["b6"])
-            live.props["song_length"] = 64.0
-            act.run(pad.MOD_ACTIONS["b8"])
-            act.run(pad.MOD_ACTIONS["b10"])
+            act.run(pad.MOD_ACTIONS["b10"])    # MOD+K10 = redo
             time.sleep(0.3)
             sent = [m for m in live.received if "/get/" not in m[0] and m[0] != "/live/test"]
             self.assertEqual(sent, [
@@ -308,7 +307,7 @@ class PadTests(unittest.TestCase):
                 ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 1),
                 ("/live/song/set/punch_in", 0), ("/live/song/set/punch_out", 1),
                 ("/live/song/set/punch_in", 0), ("/live/song/set/punch_out", 0),
-                ("/live/song/set/current_song_time", 0.0), ("/live/song/set/current_song_time", 64.0)])
+                ("/live/song/redo",)])
         finally:
             osc.close()
             live.close()

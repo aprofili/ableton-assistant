@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.7
+- MOD+K8 = Undo, MOD+K10 = Redo (replacing go to start/end). K2 is now unassigned.
+
 ## 1.7.6
 - Pad map remembers its window position, size and maximized state across restarts (data/ui_state.json).
 
