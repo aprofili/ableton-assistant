@@ -472,7 +472,7 @@ class PadTests(unittest.TestCase):
         self.assertEqual(pad.label_for("dial_cw", {})[0], "Scroll right")
         self.assertEqual(pad.label_for("dial_cw", {"hold": "b9"})[0], "Forward 1 bar")
         self.assertEqual(pad.label_for("dial_ccw", {"hold": "b9", "vmod": True})[0], "Back 1 beat")
-        self.assertEqual(pad.label_for("b9", {"hold": "b9"}), ("Playhead\n(turn dial)", True))
+        self.assertEqual(pad.label_for("b9", {"hold": "b9"}), ("Playhead", True))
         self.assertEqual(pad.label_for("b4", {"hold": "b9"})[0], "Record")
 
         class Osc:

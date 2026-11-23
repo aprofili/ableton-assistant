@@ -69,14 +69,14 @@ NAMES = {"b1": "K1", "b2": "K2", "b3": "K3", "b4": "K4", "b5": "K5", "b6": "K6",
 
 # hold+dial wording, shown only while the button is held: kind -> (button title, cw, ccw, cw mod, ccw mod)
 HOLD_LABELS = {
-    "tempo": ("Tempo\n(turn dial)", "Tempo +1", "Tempo -1", "Tempo +5", "Tempo -5"),
-    "playhead": ("Playhead\n(turn dial)", "Forward 1 bar", "Back 1 bar", "Forward 1 beat", "Back 1 beat"),
-    "track": ("Select track\n(turn dial)", "Next track", "Previous track", "Next track", "Previous track"),
-    "volume": ("Volume\n(turn dial)", "Louder", "Quieter", "Louder (big)", "Quieter (big)"),
-    "pan": ("Pan\n(turn dial)", "Pan right", "Pan left", "Pan right (big)", "Pan left (big)"),
-    "loop_move": ("Move loop\n(turn dial)", "Loop later 1 bar", "Loop earlier 1 bar", "Loop later 1 beat", "Loop earlier 1 beat"),
-    "loop_start": ("Loop start\n(turn dial)", "Start later 1 bar", "Start earlier 1 bar", "Start later 1 beat", "Start earlier 1 beat"),
-    "loop_end": ("Loop end\n(turn dial)", "End later 1 bar", "End earlier 1 bar", "End later 1 beat", "End earlier 1 beat"),
+    "tempo": ("Tempo", "Tempo +1", "Tempo -1", "Tempo +5", "Tempo -5"),
+    "playhead": ("Playhead", "Forward 1 bar", "Back 1 bar", "Forward 1 beat", "Back 1 beat"),
+    "track": ("Select track", "Next track", "Previous track", "Next track", "Previous track"),
+    "volume": ("Volume", "Louder", "Quieter", "Louder (big)", "Quieter (big)"),
+    "pan": ("Pan", "Pan right", "Pan left", "Pan right (big)", "Pan left (big)"),
+    "loop_move": ("Move loop", "Loop later 1 bar", "Loop earlier 1 bar", "Loop later 1 beat", "Loop earlier 1 beat"),
+    "loop_start": ("Loop start", "Start later 1 bar", "Start earlier 1 bar", "Start later 1 beat", "Start earlier 1 beat"),
+    "loop_end": ("Loop end", "End later 1 bar", "End earlier 1 bar", "End later 1 beat", "End earlier 1 beat"),
 }
 
 
@@ -94,13 +94,13 @@ def label_for(pid, st):
     if pid == "b1":
         if mod:
             return "That was\nWRONG", False
-        return ("Listening..." if st.get("listening") else "Voice\n(hold)"), bool(st.get("listening"))
+        return ("Listening" if st.get("listening") else "Voice"), bool(st.get("listening"))
     if pid == "b2":
         if mod:
             return ("Metronome\nON" if st.get("metronome") else "Metronome\nOFF"), bool(st.get("metronome"))
         return "Tap\ntempo", False
     if pid == "b3":
-        return "MOD\n(hold)", mod
+        return "MOD", mod
     if pid == "b4":
         if mod:
             return ("Stop session\nrecord" if st.get("session_record") else "Session\nrecord"), bool(st.get("session_record"))
