@@ -1,7 +1,7 @@
 """Button pad / dial support (built for the XPPen ACK05, works with any device that sends keys).
 
-Configure the device in its driver so each button sends the key listed in PAD_KEYS (F13-F24 and
-Pause: keys nothing else uses). Remap in config.json under "pad": {"keys": {"b2": "f5", ...}}.
+Configure the device in its driver so each button sends the combo listed in PAD_KEYS
+(Ctrl+Alt+Shift+F1..F12 and Insert: combos nothing else uses). Single keys (e.g. "f20") also work. Remap in config.json under "pad": {"keys": {"b2": "f5", ...}}.
 
 Layout (reading order):          dial: rotate = scroll, press = go to start
   [b1][b2][b3][ b4 ]
@@ -19,15 +19,17 @@ import time
 
 from pynput import keyboard
 
-from .trigger import key_name
+from .trigger import key_name, parse_combo
 
 log = logging.getLogger("assistant")
 
+_CSA = "ctrl+alt+shift+"
 PAD_KEYS = {
-    "b1": "f13", "b2": "f14", "b3": "f15", "b4": "f16", "b5": "f17", "b6": "f18",
-    "b7": "f19", "b8": "f20", "b9": "f21", "b10": "f22",
-    "dial_cw": "f23", "dial_ccw": "f24", "dial_press": "pause",
+    "b1": _CSA + "f1", "b2": _CSA + "f2", "b3": _CSA + "f3", "b4": _CSA + "f4", "b5": _CSA + "f5",
+    "b6": _CSA + "f6", "b7": _CSA + "f7", "b8": _CSA + "f8", "b9": _CSA + "f9", "b10": _CSA + "f10",
+    "dial_cw": _CSA + "f11", "dial_ccw": _CSA + "f12", "dial_press": _CSA + "insert",
 }
+MODS = {"ctrl", "alt", "shift", "cmd"}
 
 # id -> (action list or None, name). b1 is voice; b7 is the scroll modifier (hold).
 ACTIONS = {
@@ -162,9 +164,9 @@ class PadController:
         self.keys = dict(PAD_KEYS)
         self.keys.update(pc.get("keys", {}))
         self.assistant = assistant
-        self.by_key = {}
-        for pid, k in self.keys.items():
-            self.by_key[k.strip().lower()] = pid
+        self.by_combo = {parse_combo(k): pid for pid, k in self.keys.items()}
+        self._mods = set()
+        self._down = {}  # key name -> pid, so release works even if modifiers go up first
         self.scroller = Scroller(pc.get("auto_hover", True))
         self.pressed = set()
         self.live = {"playing": False, "metronome": False, "loop": False, "record": False}
@@ -202,15 +204,24 @@ class PadController:
 
     # ---- input
     def _press(self, k):
-        pid = self.by_key.get(key_name(k))
+        n = key_name(k)
+        if n in MODS:
+            self._mods.add(n)
+            return
+        pid = self.by_combo.get(frozenset(self._mods | {n}))
         if not pid:
             return
+        self._down[n] = pid
         repeat = pid in self.pressed
         self.pressed.add(pid)
         self.handle(pid, repeat)
 
     def _release(self, k):
-        pid = self.by_key.get(key_name(k))
+        n = key_name(k)
+        if n in MODS:
+            self._mods.discard(n)
+            return
+        pid = self._down.pop(n, None)
         if pid:
             self.pressed.discard(pid)
 

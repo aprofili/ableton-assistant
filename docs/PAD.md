@@ -1,22 +1,22 @@
 # Button pad (XPPen ACK05 or any key-sending pad)
 
-Program each button/dial action in the XPPen driver to send the key below (F13-F24 and Pause are unused by other software). Change any of them in `config.json`: `{"pad": {"keys": {"b2": "f5"}}}`. Open the live map from the tray: **Pad map (second monitor)** (opens on monitor 2, maximized; F11 / double-click = fullscreen; `pad.map_monitor` selects the screen).
+Program each button/dial action in the XPPen driver to send the combo below (Ctrl+Alt+Shift + a function key: nothing else uses these; single keys like `f20` also work). Change any of them in `config.json`: `{"pad": {"keys": {"b2": "ctrl+alt+shift+f5"}}}`. Open the live map from the tray: **Pad map (second monitor)** (opens on monitor 2, maximized; F11 / double-click = fullscreen; `pad.map_monitor` selects the screen).
 
 | Input | Key to send | Action (all local, no API) |
 |---|---|---|
-| K1 | F13 | Voice, hold to talk |
-| K2 | F14 | Undo (Redo while K7 held) |
-| K3 | F15 | That was WRONG: saves feedback on the last voice command (see below) |
-| K4 (tall) | F16 | Record on/off (shows "Stop recording" while recording) |
-| K5 | F17 | Metronome toggle (shows ON/OFF) |
-| K6 | F18 | Loop toggle (shows ON/OFF) |
-| K7 | F19 | Hold: dial scrolls vertically instead of horizontally |
-| K8 | F20 | Previous section marker |
-| K9 (wide) | F21 | Play / Pause (one button; label follows transport) |
-| K10 | F22 | Next section marker |
-| Dial clockwise | F23 | Scroll right (down while K7 held) |
-| Dial counter-clockwise | F24 | Scroll left (up while K7 held) |
-| Dial press | Pause | Go to start |
+| K1 | Ctrl+Alt+Shift+F1 | Voice, hold to talk |
+| K2 | Ctrl+Alt+Shift+F2 | Undo (Redo while K7 held) |
+| K3 | Ctrl+Alt+Shift+F3 | That was WRONG: saves feedback on the last voice command (see below) |
+| K4 (tall) | Ctrl+Alt+Shift+F4 | Record on/off (shows "Stop recording" while recording) |
+| K5 | Ctrl+Alt+Shift+F5 | Metronome toggle (shows ON/OFF) |
+| K6 | Ctrl+Alt+Shift+F6 | Loop toggle (shows ON/OFF) |
+| K7 | Ctrl+Alt+Shift+F7 | Hold: dial scrolls vertically instead of horizontally |
+| K8 | Ctrl+Alt+Shift+F8 | Previous section marker |
+| K9 (wide) | Ctrl+Alt+Shift+F9 | Play / Pause (one button; label follows transport) |
+| K10 | Ctrl+Alt+Shift+F10 | Next section marker |
+| Dial clockwise | Ctrl+Alt+Shift+F11 | Scroll right (down while K7 held) |
+| Dial counter-clockwise | Ctrl+Alt+Shift+F12 | Scroll left (up while K7 held) |
+| Dial press | (not programmable: the ACK05 driver reserves it for switching the ring function) | none |
 
 Layout (reading order):
 ```

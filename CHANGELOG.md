@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.1
+- Pad keys are now Ctrl+Alt+Shift+F1..F12 (single-key remaps still work); modifier-aware matching. Dial press is not programmable on the ACK05 driver.
+
 ## 1.4.0
 
 - Voice: track volume +/- dB by name or selected track, clipping check (popup with offending tracks), new armed audio track with external input channel (RØDECaster workflow). See `docs/RODE.md`.

@@ -405,12 +405,27 @@ class PadTests(unittest.TestCase):
 
         pc = pad.PadController({"pad": {"keys": {"b2": "f5"}}}, Asst())
         pc.scroller.scroll = lambda d, vertical: calls.append((d, vertical))
-        self.assertEqual(pc.by_key["f5"], "b2")
+        self.assertEqual(pc.by_combo[frozenset({"f5"})], "b2")
         pc.handle("dial_cw")
         pc.pressed.add("b7")
         pc.handle("dial_ccw")
         self.assertEqual(calls, [(1, False), (-1, True)])
-        self.assertEqual(pc.voice_key, "f13")
+        self.assertEqual(pc.voice_key, "ctrl+alt+shift+f1")
+        pad.key_name = lambda k: k
+        C, A, S = "ctrl", "alt", "shift"
+        pc2 = pad.PadController({}, Asst())
+        pc2.handle = lambda pid, repeat=False: calls.append(pid)
+        for k in (C, A, S, "f3"):
+            pc2._press(k)
+        for k in (C, A, S):  # modifiers up before the key
+            pc2._release(k)
+        self.assertIn("b3", pc2.pressed)
+        pc2._release("f3")
+        self.assertNotIn("b3", pc2.pressed)
+        self.assertEqual(calls[-1], "b3")
+        pc2._press("f3")  # bare F3 must not trigger
+        self.assertEqual(calls[-1], "b3")
+        self.assertEqual(len(calls), 3)
 
 
 if __name__ == "__main__":
