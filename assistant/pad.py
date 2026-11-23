@@ -252,6 +252,7 @@ class PadController:
         # "focus_only": the press that brings Live forward does nothing else.
         self.focus_mode = pc.get("focus_mode", "focus_and_act")
         self.pressed = set()
+        self.mouse_mod = False  # MOD toggled by clicking the pad map (the physical pad holds MOD instead)
         self.live = {"playing": False, "metronome": False, "loop": False, "record": False,
                      "session_record": False, "count_in": False, "punch_in": False, "punch_out": False}
         self.live_ok = False
@@ -276,15 +277,36 @@ class PadController:
     def snapshot(self):
         st = dict(self.live)
         st["listening"] = self.assistant.state == "listening"
-        st["vmod"] = MOD in self.pressed
+        st["vmod"] = self._mod()
         out = {}
         for pid in self.keys:
             label, active = label_for(pid, st)
-            out[pid] = {"label": label, "active": active, "pressed": pid in self.pressed, "key": self.keys[pid]}
+            pr = pid in self.pressed or (pid == MOD and self.mouse_mod)
+            out[pid] = {"label": label, "active": active, "pressed": pr, "key": self.keys[pid]}
         out["_connected"] = self.live_ok
         last = getattr(self.assistant, "last", None)
         out["_last"] = f"Last: “{last['text']}”  ({last['source']})" if last else ""
         return out
+
+    def _mod(self):
+        return MOD in self.pressed or self.mouse_mod
+
+    def click(self, pid):
+        """Mouse click on the pad map: same action as the physical button. MOD toggles."""
+        if pid == MOD:
+            self.mouse_mod = not self.mouse_mod
+            self._q.put(None)
+            return
+        if pid == "b1":
+            a = self.assistant
+            if self.mouse_mod:
+                a.mark_wrong()
+            elif a.state == "listening":
+                a._on_stop()
+            else:
+                a._on_start()
+            return
+        self.handle(pid)
 
     # ---- input
     def _press(self, k):
@@ -313,7 +335,7 @@ class PadController:
         if pid in ("dial_cw", "dial_ccw"):
             direction = 1 if pid == "dial_cw" else -1
             try:
-                self.scroller.scroll(direction, vertical=MOD in self.pressed)
+                self.scroller.scroll(direction, vertical=self._mod())
             except Exception:
                 log.exception("scroll failed")
             return
@@ -322,7 +344,7 @@ class PadController:
         if pid == MOD:
             self._q.put(None)  # just bring Live forward
             return
-        mod = MOD in self.pressed
+        mod = self._mod()
         if pid == "b1":  # voice is handled by the trigger; MOD+K1 = "that was wrong"
             self._q.put(None)
             if mod:

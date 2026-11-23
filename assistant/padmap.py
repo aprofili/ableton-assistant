@@ -84,7 +84,7 @@ class PadMap:
             self.root.protocol("WM_DELETE_WINDOW", self.hide)
             self.root.bind("<F11>", self._toggle_full)
             self.root.bind("<Escape>", lambda e: self._set_full(False))
-            self.canvas.bind("<Double-Button-1>", self._toggle_full)
+            self.canvas.bind("<Button-1>", self._click)
             self.root.after(50, self._tick)
             self.root.mainloop()
         except Exception:
@@ -142,6 +142,7 @@ class PadMap:
         ox, oy = (w - W0 * s) / 2, (h - 20 - (H0 - 40) * s) / 2 - 30 * s
         X = lambda v: ox + v * s
         Y = lambda v: oy + v * s
+        self._xf = (ox, oy, s)
         snap = snap or self.pad.snapshot()
         c.delete("all")
         x0, y0, x1, y1 = BODY_RECT
@@ -169,8 +170,22 @@ class PadMap:
         if snap.get("_last"):
             c.create_text(w / 2, Y(y1) + 28 * s, text=snap["_last"], fill=MUTED, font=("Segoe UI", max(9, int(s * 7))))
         status = "Connected to Live" if snap["_connected"] else "Waiting for Ableton (is AbletonOSC enabled?)"
-        c.create_text(w / 2, h - 12, text=status + "   |   F11 or double-click: fullscreen", fill=GREEN if snap["_connected"] else AMBER,
+        c.create_text(w / 2, h - 12, text=status + "   |   click buttons to use them (MOD toggles)   |   F11: fullscreen", fill=GREEN if snap["_connected"] else AMBER,
                       font=("Segoe UI", 10))
+
+    def _click(self, e):
+        try:
+            ox, oy, s = self._xf
+            x, y = (e.x - ox) / s, (e.y - oy) / s
+            for pid, (a0, b0, a1, b1) in KEYS.items():
+                if a0 <= x <= a1 and b0 <= y <= b1:
+                    self.pad.click(pid)
+                    return
+            cx, cy, r = DIAL
+            if (x - cx) ** 2 + (y - cy) ** 2 <= r * r or (abs(x - 100) < 60 and cy + r + 10 < y < cy + r + 55):
+                self.pad.click("dial_ccw" if (y > cy + r and y < cy + r + 32) or (y <= cy + r and x < cx) else "dial_cw")
+        except Exception:
+            log.exception("pad map click")
 
     def _text(self, x, y, text, size, color, anchor="center"):
         self.canvas.create_text(x, y, text=text, fill=color, anchor=anchor, justify="center",
