@@ -35,6 +35,7 @@ MOD = "b3"  # hold: modifier for every other input
 
 # id -> actions. K1 is voice (mod: "that was wrong"), K3 is the modifier itself.
 ACTIONS = {
+    "b2": [{"type": "tap_tempo"}],
     "b4": [{"type": "record", "on": "toggle"}],
     "b5": [{"type": "metronome", "on": "toggle"}],
     "b6": [{"type": "loop", "on": "toggle"}],
@@ -46,6 +47,7 @@ ACTIONS = {
 
 # with MOD held
 MOD_ACTIONS = {
+    "b2": [{"type": "capture_midi"}],
     "b4": [{"type": "session_record", "on": "toggle"}],
     "b5": [{"type": "count_in_toggle"}],
     "b6": [{"type": "punch_cycle"}],
@@ -70,7 +72,7 @@ def label_for(pid, st):
             return "That was\nWRONG", False
         return ("Listening..." if st.get("listening") else "Voice\n(hold)"), bool(st.get("listening"))
     if pid == "b2":
-        return "", False
+        return ("Capture\nMIDI" if mod else "Tap\ntempo"), False
     if pid == "b3":
         return "MOD\n(hold)", mod
     if pid == "b4":

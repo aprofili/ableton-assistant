@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.8
+- K2 = Tap tempo, MOD+K2 = Capture MIDI.
+
 ## 1.7.7
 - MOD+K8 = Undo, MOD+K10 = Redo (replacing go to start/end). K2 is now unassigned.
 
