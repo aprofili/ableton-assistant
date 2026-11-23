@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+- Tray menu regrouped: Settings / Updates / Tools submenus; top level keeps Listening, Pad map, Last command wrong, Microphone, Restart, Quit.
+- Raw HID tap for the XP-Pen pad (logs/pad_hid.log) as groundwork for bypassing the driver.
+- Auto-restart when code files change on disk.
+- Scroll burst logging.
+
 ## 1.5.2
 - Dial scroll behaves like a real wheel: one tick, one notch, no coasting (stale ticks dropped), mild speed-up only on fast spins.
 - Each scroll burst focuses Live and parks the cursor on the arrangement/clip area. Config: `pad.scroll_step`, `pad.scroll_max_mult`, `pad.scroll_point`.
