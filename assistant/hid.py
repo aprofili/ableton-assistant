@@ -98,7 +98,10 @@ class HidTap:
         timeout so a stuck HID call can never freeze the assistant."""
         import subprocess
         try:
-            r = subprocess.run([sys.executable, "-I", "-m", "assistant.hidinit"], cwd=HERE, capture_output=True,
+            exe = sys.executable
+            if exe.lower().endswith("pythonw.exe"):  # pythonw has no stdout; use the console interpreter
+                exe = exe[:-len("pythonw.exe")] + "python.exe"
+            r = subprocess.run([exe, os.path.join(HERE, "assistant", "hidinit.py")], cwd=HERE, capture_output=True,
                                text=True, timeout=8, creationflags=0x08000000)
             for line in (r.stdout + r.stderr).splitlines():
                 self._dump("rawmode " + line)
