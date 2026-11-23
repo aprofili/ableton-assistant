@@ -19,6 +19,8 @@ RIDI_DEVICENAME = 0x20000007
 RIDI_DEVICEINFO = 0x2000000B
 RID_INPUT = 0x10000003
 RIDEV_INPUTSINK = 0x100
+RIDEV_DEVNOTIFY = 0x2000
+WM_INPUT_DEVICE_CHANGE = 0x00FE
 RIDEV_PAGEONLY = 0x20
 FALLBACK_PAGES = [0x01, 0x0C, 0x0D, 0xFF00, 0xFF01, 0xFF02, 0xFF0A, 0xFF0B, 0xFF0C, 0xFF0D, 0xFF0E, 0xFF0F]
 WM_INPUT = 0x00FF
@@ -141,6 +143,12 @@ class HidTap:
                     self._on_input(lp)
                 except Exception:
                     log.exception("hid input")
+            elif msg == WM_INPUT_DEVICE_CHANGE and wp == 1:  # a device arrived (pad switched on / replugged)
+                try:
+                    if "VID_28BD" in self._devname(lp).upper():
+                        self._schedule_init(1.5, "pad connected")
+                except Exception:
+                    log.exception("hid device change")
             return u.DefWindowProcW(hwnd, msg, wp, lp)
 
         self._proc = WNDPROC(proc)
@@ -162,9 +170,9 @@ class HidTap:
         hwnd = u.CreateWindowExW(0, wc.lpszClassName, "hid", 0, 0, 0, 0, 0, wt.HWND(HWND_MESSAGE), None,
                                  wc.hInstance, None)
         pages = {(p, u_) for p, u_ in self._xppen_pages() if p}
-        reg = [RAWINPUTDEVICE(p, us, RIDEV_INPUTSINK, hwnd) for p, us in pages]
+        reg = [RAWINPUTDEVICE(p, us, RIDEV_INPUTSINK | RIDEV_DEVNOTIFY, hwnd) for p, us in pages]
         # also register whole usage pages (only XP-Pen reports are kept in _on_input)
-        reg += [RAWINPUTDEVICE(p, 0, RIDEV_INPUTSINK | RIDEV_PAGEONLY, hwnd) for p in FALLBACK_PAGES]
+        reg += [RAWINPUTDEVICE(p, 0, RIDEV_INPUTSINK | RIDEV_PAGEONLY | RIDEV_DEVNOTIFY, hwnd) for p in FALLBACK_PAGES]
         ok = 0
         for r in reg:  # one by one: a single rejected entry must not drop the rest
             one = (RAWINPUTDEVICE * 1)(r)
@@ -183,10 +191,29 @@ class HidTap:
             u.TranslateMessage(ctypes.byref(msg))
             u.DispatchMessageW(ctypes.byref(msg))
 
+    _init_at = 0.0
+
+    def _schedule_init(self, delay, why):
+        """Re-send the raw-mode packet shortly (debounced). Used on reconnect or when the pad is seen in
+        keyboard mode."""
+        now = time.time()
+        if now - self._init_at < 4.0:
+            return
+        self._init_at = now
+        log.info("Pad raw mode re-init (%s)", why)
+
+        def go():
+            time.sleep(delay)
+            try:
+                self.enable_raw_mode()
+            except Exception:
+                log.exception("raw mode re-init")
+        threading.Thread(target=go, daemon=True, name="pad-reinit").start()
+
     def _keep_raw(self):
-        """The pad drops back to keyboard mode when it reconnects (wireless sleep/wake): re-send every minute."""
+        """The pad drops back to keyboard mode when it reconnects (wireless sleep/wake): re-send every 5 minutes as a safety net."""
         while True:
-            time.sleep(60)
+            time.sleep(300)
             try:
                 self.enable_raw_mode()
             except Exception:
@@ -204,7 +231,8 @@ class HidTap:
         if "VID_28BD" not in name.upper():
             return
         self._last_report = time.time()
-        if hdr.dwType == 1:  # keyboard: the pad's own default keystrokes (no driver)
+        if hdr.dwType == 1:  # keyboard: the pad is in keyboard mode -> switch it to raw mode
+            self._schedule_init(0.3, "pad in keyboard mode")
             import struct
             make, flags, _r, vkey, msg = struct.unpack_from("<HHHHI", buf.raw, hs)
             self._dump(f"key {name[-40:-30]} vk=0x{vkey:02X} make=0x{make:02X} flags={flags} msg=0x{msg:X}")
@@ -223,6 +251,8 @@ class HidTap:
         data = bytes(buf.raw[off + 8: off + 8 + size_hid * count])
         for i in range(count):
             rep = data[i * size_hid:(i + 1) * size_hid]
+            if len(rep) >= 4 and rep[0] == 2 and rep[1] == 0xF8 and rep[2] == 2 and rep[3] == 1:
+                self._schedule_init(0.5, "reconnect report")
             if self.on_report:
                 self.on_report(name, rep)
             if self._count < 3000:

@@ -156,6 +156,10 @@ class PadMap:
             c.create_oval(X(cx - rr), Y(cy - rr), X(cx + rr), Y(cy + rr), outline="#242b34", width=1)
         rb = r * 0.36
         c.create_oval(X(cx - rb), Y(cy - rb), X(cx + rb), Y(cy + rb), fill="#0d1014", outline="#3a424d", width=ow)
+        dp = snap["dial_press"]
+        c.create_oval(X(cx - rb), Y(cy - rb), X(cx + rb), Y(cy + rb), fill=KEYON if dp["active"] else ("#2a3440" if dp["pressed"] else "#0d1014"),
+                      outline="#3a424d", width=ow)
+        self._text(X(cx), Y(cy), dp["label"], s * 6, FG)
         ccw, cw = snap["dial_ccw"], snap["dial_cw"]
         # dial labels under the dial, on the body
         self._text(X(100), Y(cy + r + 22), "\u21ba " + ccw["label"], s * 8.5, KEYDN if ccw["pressed"] else FG)
@@ -182,6 +186,9 @@ class PadMap:
                     self.pad.click(pid)
                     return
             cx, cy, r = DIAL
+            if (x - cx) ** 2 + (y - cy) ** 2 <= (r * 0.36) ** 2:
+                self.pad.click("dial_press")
+                return
             if (x - cx) ** 2 + (y - cy) ** 2 <= r * r or (abs(x - 100) < 60 and cy + r + 10 < y < cy + r + 55):
                 self.pad.click("dial_ccw" if (y > cy + r and y < cy + r + 32) or (y <= cy + r and x < cx) else "dial_cw")
         except Exception:

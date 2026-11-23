@@ -99,7 +99,7 @@ def label_for(pid, st):
     if pid == "b10":
         return ("Go to\nend" if mod else "Next\nsection"), False
     if pid == "dial_press":
-        return "", False
+        return "Claude", bool(st.get("listening_claude"))
     if pid == "dial_cw":
         return ("Scroll down" if mod else "Scroll right"), False
     if pid == "dial_ccw":
@@ -280,6 +280,7 @@ class PadController:
         st = dict(self.live)
         st["listening"] = self.assistant.state == "listening"
         st["vmod"] = self._mod()
+        st["listening_claude"] = bool(getattr(self.assistant, "_to_claude", False))
         out = {}
         for pid in self.keys:
             label, active = label_for(pid, st)
@@ -322,7 +323,10 @@ class PadController:
                     self.assistant.mark_wrong()
                 if down:
                     self._q.put(None)
-            elif down and pid != "dial_press":
+            elif pid == "dial_press":
+                if down:
+                    self._claude_toggle()
+            elif down:
                 self.handle(pid)
         if rep[7] in (1, 2):
             pid = "dial_cw" if rep[7] == 1 else "dial_ccw"
@@ -333,11 +337,19 @@ class PadController:
     def _mod(self):
         return MOD in self.pressed or self.mouse_mod
 
+    def _claude_toggle(self):
+        fn = getattr(self.assistant, "claude_dictate_toggle", None)
+        if fn:
+            threading.Thread(target=fn, daemon=True, name="claude-dictate").start()
+
     def click(self, pid):
         """Mouse click on the pad map: same action as the physical button. MOD toggles."""
         if pid == MOD:
             self.mouse_mod = not self.mouse_mod
             self._q.put(None)
+            return
+        if pid == "dial_press":
+            self._claude_toggle()
             return
         if pid == "b1":
             a = self.assistant
