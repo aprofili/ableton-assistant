@@ -252,6 +252,8 @@ class PadController:
         # "focus_only": the press that brings Live forward does nothing else.
         self.focus_mode = pc.get("focus_mode", "focus_and_act")
         self.pressed = set()
+        self._hid_seen = 0.0
+        self._hid_state = 0
         self.mouse_mod = False  # MOD toggled by clicking the pad map (the physical pad holds MOD instead)
         self.live = {"playing": False, "metronome": False, "loop": False, "record": False,
                      "session_record": False, "count_in": False, "punch_in": False, "punch_out": False}
@@ -288,6 +290,46 @@ class PadController:
         out["_last"] = f"Last: “{last['text']}”  ({last['source']})" if last else ""
         return out
 
+    HID_BUTTONS = [f"b{i}" for i in range(1, 11)] + ["dial_press"]  # bit order in report bytes 2-3
+
+    def hid_active(self):
+        """True while the raw HID tap is delivering pad reports (then the driver's key combos are ignored)."""
+        return time.time() - self._hid_seen < 30
+
+    def hid_report(self, rep):
+        """Raw pad report: [0x02, 0xf0, buttons lo, buttons hi, ..., dial at byte 7]."""
+        if len(rep) < 8 or rep[0] != 2 or rep[1] != 0xF0:
+            if len(rep) >= 2 and rep[0] == 2:
+                self._hid_seen = time.time()  # heartbeat report
+            return
+        self._hid_seen = time.time()
+        state = rep[2] | (rep[3] << 8)
+        changed = state ^ self._hid_state
+        self._hid_state = state
+        for i, pid in enumerate(self.HID_BUTTONS):
+            if not changed >> i & 1:
+                continue
+            down = bool(state >> i & 1)
+            if down:
+                self.pressed.add(pid)
+            else:
+                self.pressed.discard(pid)
+            if pid == "b1":
+                tr = getattr(self.assistant, "trigger", None)
+                if tr:
+                    tr.feed("hid_b1", down)
+                if down and self._mod():
+                    self.assistant.mark_wrong()
+                if down:
+                    self._q.put(None)
+            elif down and pid != "dial_press":
+                self.handle(pid)
+        if rep[7] in (1, 2):
+            pid = "dial_cw" if rep[7] == 1 else "dial_ccw"
+            self.pressed.add(pid)
+            threading.Timer(0.12, lambda: self.pressed.discard(pid)).start()
+            self.handle(pid)
+
     def _mod(self):
         return MOD in self.pressed or self.mouse_mod
 
@@ -315,7 +357,7 @@ class PadController:
             self._mods.add(n)
             return
         pid = self.by_combo.get(frozenset(self._mods | {n}))
-        if not pid:
+        if not pid or self.hid_active():
             return
         self._down[n] = pid
         repeat = pid in self.pressed

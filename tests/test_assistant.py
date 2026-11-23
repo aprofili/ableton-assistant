@@ -445,6 +445,28 @@ class PadTests(unittest.TestCase):
         self.assertEqual(len(calls), 3)
 
 
+    def test_hid_reports(self):
+        pad = self._pad_mod()
+
+        class Asst:
+            state = "idle"
+            actions = osc = trigger = None
+
+        pc = pad.PadController({}, Asst())
+        calls = []
+        pc.handle = lambda pid, repeat=False: calls.append(pid)
+        rep = lambda lo=0, hi=0, dial=0: bytes([2, 0xF0, lo, hi, 0, 0, 0, dial, 0, 0, 0, 0])
+        pc.hid_report(rep(lo=0x02))      # K2
+        pc.hid_report(rep())
+        pc.hid_report(rep(hi=0x01))      # K9
+        pc.hid_report(rep())
+        pc.hid_report(rep(hi=0x04))      # dial press: no action
+        pc.hid_report(rep(dial=1))
+        pc.hid_report(rep(dial=2))
+        self.assertEqual(calls, ["b2", "b9", "dial_cw", "dial_ccw"])
+        self.assertTrue(pc.hid_active())
+
+
 class MacroTests(unittest.TestCase):
     def setUp(self):
         import tempfile

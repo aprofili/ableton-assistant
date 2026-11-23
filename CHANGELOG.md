@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.0
+- Pad is read directly from its raw HID reports (no driver key mappings needed): K1-K10, dial press, dial ticks. Driver key combos are ignored while HID reports arrive and used as fallback otherwise.
+- Pad map is clickable (MOD toggles on click).
+
 ## 1.5.4
 - Pad map is clickable: buttons and the dial (left/right half) do the same action as the pad. Clicking MOD toggles it (sticky); the physical pad still uses hold.
 

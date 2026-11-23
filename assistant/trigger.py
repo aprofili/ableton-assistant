@@ -78,8 +78,18 @@ class Trigger:
             self.active = False
             self.on_stop()
 
+    def feed(self, name, down):
+        """Press/release of a synthetic key (e.g. 'hid_b1' from the raw pad tap)."""
+        (self._press_name if down else self._release_name)(name)
+
     def _press(self, k):
-        self.pressed.add(key_name(k))
+        self._press_name(key_name(k))
+
+    def _release(self, k):
+        self._release_name(key_name(k))
+
+    def _press_name(self, name):
+        self.pressed.add(name)
         if self._held() and not self.latched:
             self.latched = True
             if self.mode == "hold":
@@ -97,8 +107,8 @@ class Trigger:
                 self.active = True
                 self.on_start()
 
-    def _release(self, k):
-        self.pressed.discard(key_name(k))
+    def _release_name(self, name):
+        self.pressed.discard(name)
         if not self._held():
             self.latched = False
             if self.mode == "hold" and self.active:
