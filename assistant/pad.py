@@ -37,7 +37,7 @@ MOD = "b3"  # hold: modifier for every other input
 ACTIONS = {
     "b2": [{"type": "tap_tempo"}],
     "b4": [{"type": "record", "on": "toggle"}],
-    "b5": [{"type": "metronome", "on": "toggle"}],
+    "b5": [{"type": "capture_midi"}],
     "b6": [{"type": "loop", "on": "toggle"}],
     "b7": [{"type": "key", "keys": "tab"}],  # Live: toggle Session / Arrangement view
     "b8": [{"type": "prev_cue"}],
@@ -47,9 +47,8 @@ ACTIONS = {
 
 # with MOD held
 MOD_ACTIONS = {
-    "b2": [{"type": "capture_midi"}],
+    "b2": [{"type": "metronome", "on": "toggle"}],
     "b4": [{"type": "session_record", "on": "toggle"}],
-    "b5": [{"type": "count_in_toggle"}],
     "b6": [{"type": "punch_cycle"}],
     "b7": [{"type": "key", "keys": "shift+tab"}],  # Live: toggle Clip / Device detail view
     "b8": [{"type": "undo"}],
@@ -59,7 +58,7 @@ MOD_ACTIONS = {
 VMOD_ACTIONS = MOD_ACTIONS  # old name
 # Buttons that, when held (without MOD) while turning the dial, change something instead of scrolling.
 # A plain tap still runs the button's normal action (on release).
-HOLD_SCROLL = {"b5": "tempo"}
+HOLD_SCROLL = {"b2": "tempo"}
 
 NAMES = {"b1": "K1", "b2": "K2", "b3": "K3", "b4": "K4", "b5": "K5", "b6": "K6", "b7": "K7",
          "b8": "K8", "b9": "K9", "b10": "K10", "dial_cw": "Dial CW", "dial_ccw": "Dial CCW",
@@ -75,7 +74,9 @@ def label_for(pid, st):
             return "That was\nWRONG", False
         return ("Listening..." if st.get("listening") else "Voice\n(hold)"), bool(st.get("listening"))
     if pid == "b2":
-        return ("Capture\nMIDI" if mod else "Tap\ntempo"), False
+        if mod:
+            return ("Metronome\nON" if st.get("metronome") else "Metronome\nOFF"), bool(st.get("metronome"))
+        return "Tap tempo\n(hold+dial:\ntempo)", False
     if pid == "b3":
         return "MOD\n(hold)", mod
     if pid == "b4":
@@ -83,9 +84,7 @@ def label_for(pid, st):
             return ("Stop session\nrecord" if st.get("session_record") else "Session\nrecord"), bool(st.get("session_record"))
         return ("Stop\nrecording" if st.get("record") else "Record"), bool(st.get("record"))
     if pid == "b5":
-        if mod:
-            return ("Count-in\nON" if st.get("count_in") else "Count-in\nOFF"), bool(st.get("count_in"))
-        return ("Metronome\nON" if st.get("metronome") else "Metronome\nOFF"), bool(st.get("metronome"))
+        return "Capture\nMIDI", False
     if pid == "b6":
         if mod:
             pi, po = bool(st.get("punch_in")), bool(st.get("punch_out"))

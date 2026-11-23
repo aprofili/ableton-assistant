@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.8.1
+- K2: tap tempo, hold + dial = tempo, MOD+K2 = metronome toggle. K5 = Capture MIDI. Count-in toggle removed.
+
 ## 1.8.0
 - Hold K5 + turn the dial = tempo in whole BPM (popup shows it). K5 now toggles the metronome on release, and only if the dial wasn't used. Framework for more hold+dial buttons (`HOLD_SCROLL`).
 
