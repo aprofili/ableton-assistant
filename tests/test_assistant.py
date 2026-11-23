@@ -468,6 +468,31 @@ class PadTests(unittest.TestCase):
         self.assertTrue(pc.hid_active())
 
 
+    def test_hold_k5_dial_changes_tempo_tap_toggles(self):
+        pad = self._pad_mod()
+
+        class Asst:
+            state = "idle"
+            actions = osc = trigger = None
+
+        pc = pad.PadController({}, Asst())
+        calls, nudges = [], []
+        pc.handle = lambda pid, repeat=False: calls.append(pid)
+        pc._nudge = lambda d: nudges.append(d)
+        rep = lambda lo=0, hi=0, dial=0: bytes([2, 0xF0, lo, hi, 0, 0, 0, dial, 0, 0, 0, 0])
+        pc.hid_report(rep(lo=0x10))         # K5 down: nothing yet
+        self.assertEqual(calls, [])
+        pc.hid_report(rep())                # tap -> toggles metronome on release
+        self.assertEqual(calls, ["b5"])
+        pc.hid_report(rep(lo=0x10))
+        pc.handle = pad.PadController.handle.__get__(pc)  # real handle for the dial branch
+        pc.hid_report(rep(lo=0x10, dial=1))
+        pc.hid_report(rep(lo=0x10, dial=2))
+        pc.hid_report(rep())                # release after scrolling: no toggle
+        self.assertEqual(nudges, [1, -1])
+        self.assertEqual(calls, ["b5"])
+
+
 class MacroTests(unittest.TestCase):
     def setUp(self):
         import tempfile

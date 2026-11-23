@@ -30,3 +30,10 @@ Notes: pressing any button while Live isn't in front brings Live forward, then r
 Hold MOD and press K1 (or tray > "Last command was wrong") right after a voice command misbehaves. It saves to `data/feedback/feedback.jsonl`: what was heard, how it was routed (local/shortcut/claude), the actions sent, Live's state before and at feedback time, the last 40 log lines and a screenshot. No explanation needed.
 
 Immediate effect: that phrase is remembered as wrong. Next time you say it, the local router is skipped and Claude gets the phrase with a hint that the earlier interpretation was wrong (needs the API key). Claude can't change the code; permanent fixes (router rules, prompt changes) happen when feedback is reviewed in a Claude Code session and shipped as a release. Say "review feedback" there.
+
+## Hold + dial
+Hold a button and turn the dial to change something; a plain tap still runs the button's normal action (on release).
+
+| Hold | Dial | Notes |
+|---|---|---|
+| K5 (Metronome) | Tempo ±1 BPM per click | popup shows the tempo; tap K5 toggles the metronome as before |

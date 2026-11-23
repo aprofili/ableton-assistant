@@ -57,6 +57,9 @@ MOD_ACTIONS = {
     "b10": [{"type": "redo"}],
 }
 VMOD_ACTIONS = MOD_ACTIONS  # old name
+# Buttons that, when held (without MOD) while turning the dial, change something instead of scrolling.
+# A plain tap still runs the button's normal action (on release).
+HOLD_SCROLL = {"b5": "tempo"}
 
 NAMES = {"b1": "K1", "b2": "K2", "b3": "K3", "b4": "K4", "b5": "K5", "b6": "K6", "b7": "K7",
          "b8": "K8", "b9": "K9", "b10": "K10", "dial_cw": "Dial CW", "dial_ccw": "Dial CCW",
@@ -254,6 +257,9 @@ class PadController:
         self.pressed = set()
         self._stamp = {}
         self._hold = {}
+        self._hold_btn = None   # button held for hold+dial (e.g. K5 = tempo)
+        self._hold_used = False
+        self._nq = None
         self._hid_seen = 0.0
         self._hid_state = 0
         self.mouse_mod = False  # MOD toggled by clicking the pad map (the physical pad holds MOD instead)
@@ -328,6 +334,16 @@ class PadController:
             elif pid == "dial_press":
                 if down:
                     self._claude_toggle()
+            elif pid in HOLD_SCROLL:
+                if down:
+                    if self._mod():
+                        self.handle(pid)           # MOD+K5 etc. act immediately
+                    else:
+                        self._hold_btn, self._hold_used = pid, False
+                elif self._hold_btn == pid:
+                    if not self._hold_used:        # a tap, not a hold+dial: run the normal action
+                        self.handle(pid)
+                    self._hold_btn = None
             elif down:
                 self.handle(pid)
         if rep[7] in (1, 2):
@@ -387,9 +403,38 @@ class PadController:
         if pid:
             self.pressed.discard(pid)
 
+    def _nudge(self, delta):
+        """Hold+dial tempo steps: a worker merges ticks and applies them as whole BPM."""
+        if self._nq is None:
+            self._nq = queue.Queue()
+            threading.Thread(target=self._nudge_worker, daemon=True, name="pad-nudge").start()
+        self._nq.put(delta)
+
+    def _nudge_worker(self):
+        while True:
+            d = self._nq.get()
+            try:
+                while True:
+                    try:
+                        d += self._nq.get(timeout=0.005)
+                    except queue.Empty:
+                        break
+                a = self.assistant.actions
+                if a is not None and d:
+                    bpm = a.nudge_tempo(d)
+                    ov = getattr(self.assistant, "overlay", None)
+                    if ov:
+                        ov.result(True, f"Tempo {bpm:g}", "hold K5 + turn dial")
+            except Exception as e:
+                log.info("Tempo nudge failed: %s", e)
+
     def handle(self, pid, repeat=False):
         if pid in ("dial_cw", "dial_ccw"):
             direction = 1 if pid == "dial_cw" else -1
+            if self._hold_btn and not self._mod():
+                self._hold_used = True
+                self._nudge(direction)
+                return
             try:
                 self.scroller.scroll(direction, vertical=self._mod())
             except Exception:

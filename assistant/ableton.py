@@ -260,6 +260,13 @@ class Actions:
     def a_set_tempo(self, a):
         self.osc.send("/live/song/set/tempo", float(a["bpm"]))
 
+    def nudge_tempo(self, delta):
+        """Whole-BPM step from the current tempo (rounded first). Returns the new tempo."""
+        cur = float(self.osc.query("/live/song/get/tempo", timeout=0.5)[0])
+        new = max(20, min(999, round(cur) + int(delta)))
+        self.osc.send("/live/song/set/tempo", float(new))
+        return new
+
     def a_undo(self, a):
         self.osc.send("/live/song/undo")
 
