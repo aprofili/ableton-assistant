@@ -19,7 +19,8 @@ RIDI_DEVICENAME = 0x20000007
 RIDI_DEVICEINFO = 0x2000000B
 RID_INPUT = 0x10000003
 RIDEV_INPUTSINK = 0x100
-RIDEV_PAGEONLY = 0x30
+RIDEV_PAGEONLY = 0x20
+FALLBACK_PAGES = [0x01, 0x0C, 0x0D, 0xFF00, 0xFF01, 0xFF02, 0xFF0A, 0xFF0B, 0xFF0C, 0xFF0D, 0xFF0E, 0xFF0F]
 WM_INPUT = 0x00FF
 HWND_MESSAGE = -3
 
@@ -78,7 +79,9 @@ class HidTap:
             sz = wt.UINT(64)
             ctypes.memset(buf, 0, 64)
             ctypes.c_ulong.from_buffer(buf).value = 32
-            u.GetRawInputDeviceInfoW(d.hDevice, RIDI_DEVICEINFO, buf, ctypes.byref(sz))
+            r = u.GetRawInputDeviceInfoW(ctypes.c_void_p(d.hDevice), RIDI_DEVICEINFO, buf, ctypes.byref(sz))
+            if r in (0, -1, 0xFFFFFFFF):
+                self._dump(f"deviceinfo failed r={r} err={ctypes.windll.kernel32.GetLastError()}")
             import struct
             page, usage = struct.unpack_from("<HH", buf.raw, 20)  # after cbSize, dwType, vid, pid, version
             pages.add((page, usage))
@@ -132,14 +135,18 @@ class HidTap:
                                       ctypes.c_int, ctypes.c_int, wt.HWND, wt.HMENU, wt.HINSTANCE, wt.LPVOID]
         hwnd = u.CreateWindowExW(0, wc.lpszClassName, "hid", 0, 0, 0, 0, 0, wt.HWND(HWND_MESSAGE), None,
                                  wc.hInstance, None)
-        pages = self._xppen_pages()
-        if not pages:
-            log.info("HID tap: no XP-Pen HID interface found")
-            self._dump("no XP-Pen HID device found")
-            return
-        devs = (RAWINPUTDEVICE * len(pages))(*[RAWINPUTDEVICE(p, us, RIDEV_INPUTSINK, hwnd) for p, us in pages])
-        ok = u.RegisterRawInputDevices(devs, len(pages), ctypes.sizeof(RAWINPUTDEVICE))
-        log.info("HID tap registered (%s interfaces, ok=%s)", len(pages), bool(ok))
+        pages = {(p, u_) for p, u_ in self._xppen_pages() if p}
+        reg = [RAWINPUTDEVICE(p, us, RIDEV_INPUTSINK, hwnd) for p, us in pages]
+        # also register whole usage pages (only XP-Pen reports are kept in _on_input)
+        reg += [RAWINPUTDEVICE(p, 0, RIDEV_INPUTSINK | RIDEV_PAGEONLY, hwnd) for p in FALLBACK_PAGES]
+        ok = 0
+        for r in reg:  # one by one: a single rejected entry must not drop the rest
+            one = (RAWINPUTDEVICE * 1)(r)
+            if u.RegisterRawInputDevices(one, 1, ctypes.sizeof(RAWINPUTDEVICE)):
+                ok += 1
+            else:
+                self._dump(f"register failed page=0x{r.usUsagePage:04X} usage=0x{r.usUsage:04X} err={k.GetLastError()}")
+        log.info("HID tap registered (%s/%s entries)", ok, len(reg))
         msg = wt.MSG()
         while u.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
             u.TranslateMessage(ctypes.byref(msg))
@@ -156,6 +163,8 @@ class HidTap:
         if hdr.dwType != RIM_TYPEHID:
             return
         name = self._devname(hdr.hDevice)
+        if "VID_28BD" not in name.upper():
+            return
         off = hs
         size_hid, count = ctypes.c_ulong.from_buffer(buf, off).value, ctypes.c_ulong.from_buffer(buf, off + 4).value
         data = bytes(buf.raw[off + 8: off + 8 + size_hid * count])
