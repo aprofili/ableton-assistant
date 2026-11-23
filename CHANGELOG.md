@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.4
+- After dictating to Claude, the chat is kept scrolled to the bottom while the reply streams (stops after `pad.claude_follow_seconds`=240, when you move the mouse, or when another window takes focus; `pad.claude_follow_bottom` to disable).
+
 ## 1.7.3
 - Fix pad map state flicker (play/pause/play): polled reads no longer overwrite newer pushes or optimistic flips, and the state dict is updated per key instead of replaced.
 
