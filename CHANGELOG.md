@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.7.6
+- Pad map remembers its window position, size and maximized state across restarts (data/ui_state.json).
+
 ## 1.7.5
 - Fix the remaining one-time pad map flicker after a press: the action's own state query returned the old value through the push path; pushes are now ignored during the post-press hold and confirmed at 0.75 s.
 

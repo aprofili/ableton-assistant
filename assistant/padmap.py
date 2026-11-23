@@ -47,6 +47,29 @@ class PadMap:
         except Exception:
             log.exception("Could not save pad map state")
 
+    def _load_state(self):
+        try:
+            with open(self.STATE, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _save_geom(self):
+        """Remember window position/size (and maximized state) so a restart reopens it the same way."""
+        try:
+            if self.root.state() == "withdrawn" or self.full:
+                return
+            cur = {"geom": self.root.geometry(), "zoomed": self.root.state() == "zoomed"}
+            if cur != getattr(self, "_geom_saved", None):
+                self._geom_saved = cur
+                st = self._load_state()
+                st["padmap_window"] = cur
+                os.makedirs(os.path.dirname(self.STATE), exist_ok=True)
+                with open(self.STATE, "w", encoding="utf-8") as f:
+                    json.dump(st, f)
+        except Exception:
+            pass
+
     def restore(self):
         """Reopen the map if it was open when the assistant last ran."""
         try:
@@ -99,6 +122,9 @@ class PadMap:
 
     def _place(self):
         """Open on the second monitor (config pad.map_monitor, default 1) and maximize."""
+        saved = self._load_state().get("padmap_window")
+        if saved and self._apply_saved(saved):
+            return
         mons = monitors()
         idx = self.cfg.get("pad", {}).get("map_monitor", 1)
         mx, my, mw, mh = mons[idx] if idx < len(mons) else mons[0]
@@ -108,6 +134,25 @@ class PadMap:
             self.root.state("zoomed")
         except Exception:
             pass
+
+    def _apply_saved(self, saved):
+        import re
+        m = re.match(r"(\d+)x(\d+)([+-]\d+)([+-]\d+)", saved.get("geom", ""))
+        if not m:
+            return False
+        w, h, x, y = int(m[1]), int(m[2]), int(m[3]), int(m[4])
+        mons = monitors()
+        # only reuse the position if it still lands on an attached monitor
+        if not any(mx - w / 2 < x < mx + mw - 100 and my - 10 < y < my + mh - 100 for mx, my, mw, mh in mons):
+            return False
+        self.root.geometry(f"{w}x{h}{x:+d}{y:+d}")
+        self.root.update_idletasks()
+        if saved.get("zoomed"):
+            try:
+                self.root.state("zoomed")
+            except Exception:
+                pass
+        return True
 
     def _tick(self):
         try:
@@ -123,6 +168,9 @@ class PadMap:
             pass
         except Exception:
             log.exception("Pad map show failed")
+        self._ticks = getattr(self, "_ticks", 0) + 1
+        if self._ticks % 30 == 0:  # ~ once a second
+            self._save_geom()
         try:
             if self.root.state() != "withdrawn":
                 snap = self.pad.snapshot()
