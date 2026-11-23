@@ -99,10 +99,14 @@ class Assistant:
                 self.trigger.add_combo(self.pad.voice_key, suppress=lambda: MOD_KEY in self.pad.pressed)
                 self.pad.start()
                 self.padmap.restore()
+                from .hid import HidTap
+                self.hid = HidTap()
+                self.hid.start()
             self.ready = True
             from . import updater
             updater.confirm()
             threading.Thread(target=self._update_loop, daemon=True, name="updater").start()
+            threading.Thread(target=self._reload_watch, daemon=True, name="reload-watch").start()
             self.set_state("idle")
             log.info("Ready. Trigger: %s (%s). Mic: %s.", t["keys"], t["mode"], self.cfg["input_device"] or "system default")
             self.trigger.run()
@@ -181,6 +185,27 @@ class Assistant:
             self.overlay.api_done(True, info)
 
     # ---- updates -------------------------------------------------------
+    def _reload_watch(self):
+        """Restart this process when its own code files change on disk (so edits take effect without a manual restart)."""
+        import glob, os, subprocess, sys
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        def stamp():
+            return max((os.path.getmtime(f) for f in glob.glob(os.path.join(root, "assistant", "*.py"))), default=0)
+
+        base = stamp()
+        while True:
+            time.sleep(3)
+            try:
+                if stamp() > base:
+                    time.sleep(2)  # let a multi-file copy finish
+                    log.info("Code changed on disk: restarting.")
+                    exe = sys.executable
+                    subprocess.Popen([exe] + sys.argv, cwd=root, creationflags=0x00000008 | 0x00000200, close_fds=True)
+                    os._exit(0)
+            except Exception:
+                log.exception("reload watch")
+
     def _update_loop(self):
         time.sleep(45)
         while True:

@@ -175,7 +175,9 @@ class Scroller:
     def _emit(self, amount, vertical):
         now = time.time()
         if now - self._burst_end > self.idle:
-            if not self._start_burst():
+            ok = self._start_burst()
+            log.info("scroll burst start (live window found: %s)", ok)
+            if not ok:
                 return
         self._burst_end = now
         self._send(-amount if vertical else amount, vertical)
