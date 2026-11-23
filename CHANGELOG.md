@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.0
+- Pad map uses vector icons instead of text (mic, record, loop, mute/solo headphones, transport, undo/redo, etc.), drawn in code so they scale. The dial shows one scroll icon (horizontal arrow, vertical with MOD) instead of two labels; while a button is held it shows a short caption (e.g. bar / beat / ±5 BPM). Text remains as a fallback.
+
 ## 1.9.2
 - Pad map stretches to fill the whole window with auto-sized text (shape is approximate); removed the "(hold)" hints from K1/K3 and "(turn dial)" from hold labels.
 
