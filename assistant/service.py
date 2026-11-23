@@ -156,7 +156,8 @@ class Assistant:
                 beep(self.cfg, "ok" if ok else "fail")
                 if ok and getattr(ok, "source", None):
                     self.last = {"text": text, "source": ok.source, "actions": ok.actions,
-                                 "before": ok.before, "ts": time.time()}
+                                 "before": ok.before, "ts": time.time(),
+                                 "macro": getattr(ok, "macro_id", None)}
                 if ok:
                     self.notify(f"“{text}”")
                 else:
@@ -237,6 +238,10 @@ class Assistant:
             from . import __version__
             feedback.record(last, now, normalize(last["text"]), __version__,
                             self.cfg.get("pad", {}).get("feedback_screenshot", True))
+            if last.get("macro"):
+                from . import macros
+                if macros.forget(last["macro"]):
+                    log.info("Forgot learned macro %s", last["macro"])
             log.info("FEEDBACK: marked wrong: %r -> %s", last["text"], last["actions"])
             beep(self.cfg, "fail")
             self.overlay.api_done(False, f"Noted as wrong: “{last['text']}”")

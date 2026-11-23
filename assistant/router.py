@@ -168,6 +168,10 @@ def route(text, shortcuts=None):
         hit = shortcuts.match(norm)
         if hit:
             return [{"type": "key", "keys": hit["keys"]}], "shortcut"
+    m = re.search(r"\b(?:make|add|create|insert|put|drop)\b.*?\b" + _NOUN + r"(?:at|on) (?:the )?(?:bar )?(\d+)\s*"
+                  r"(?:and |then )?(?:call it|name it|label it|call that|name that|called|named|labeled|labelled)\s*(.+)$", norm)
+    if m and m.group(2).strip():
+        return [{"type": "add_section", "bar": int(m.group(1)), "name": _title(m.group(2))}], "local"
     actions = []
     used_shortcut = False
     for seg in (s.strip() for s in _SPLIT.split(norm)):

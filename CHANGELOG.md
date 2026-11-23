@@ -1,6 +1,8 @@
 # Changelog
 
 ## 1.5.0
+- Learning: when Claude solves a command, the solved example is saved as a template with number/name slots (`data/learned_macros.json`) and runs locally next time ("create a section marker at bar 13 and call it drum loop" -> any bar, any name). "That was wrong" deletes the macro behind a command. Section creation with "and call it ..." is also built into the local router. Claude API timing is logged.
+- Pad: any button press brings Live to the front first if it isn't (`pad.focus_mode`: `focus_and_act` default, or `focus_only`).
 - Popups (listening, results) now appear bottom-left above the taskbar; `overlay.position` = `bottom_left` or `top_center`.
 - Pad: K3 is now a general MOD key. MOD+: K1 wrong, K2 redo, K4 session record, K5 count-in, K6 punch in/out cycle, K7 clip/device view, K8 go to start, K9 continue from stop, K10 go to end, dial scrolls vertically. K7 switches Session/Arrangement; K9 is Play/Stop.
 - Pad map: no curved dial arrows; open state persists across restarts.

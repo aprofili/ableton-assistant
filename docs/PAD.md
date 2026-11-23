@@ -24,7 +24,7 @@ Layout (reading order):
 [K5][K6][K7][tall]
 [K8][ K9  ][K10]
 ```
-Notes: set the dial to send one key per click. Scrolling sends mouse-wheel events to Live and moves the cursor onto Live's window if it isn't already over it (`pad.auto_hover`). Turning faster scrolls faster. K1 is added as an extra voice trigger alongside the main trigger key (it does not fire while MOD is held). The pad map reopens automatically if it was open when the assistant last ran.
+Notes: pressing any button while Live isn't in front brings Live forward, then runs the action (`pad.focus_mode`: `focus_and_act` default; `focus_only` makes that first press only focus Live). Set the dial to send one key per click. Scrolling sends mouse-wheel events to Live and moves the cursor onto Live's window if it isn't already over it (`pad.auto_hover`). Turning faster scrolls faster. K1 is added as an extra voice trigger alongside the main trigger key (it does not fire while MOD is held). The pad map reopens automatically if it was open when the assistant last ran.
 
 ## Feedback (MOD+K1)
 Hold MOD and press K1 (or tray > "Last command was wrong") right after a voice command misbehaves. It saves to `data/feedback/feedback.jsonl`: what was heard, how it was routed (local/shortcut/claude), the actions sent, Live's state before and at feedback time, the last 40 log lines and a screenshot. No explanation needed.

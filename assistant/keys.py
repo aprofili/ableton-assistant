@@ -40,6 +40,25 @@ def release_held_modifiers():
             u.keybd_event(vk, 0, 0x0002, 0)
 
 
+def ableton_in_front():
+    """True if the foreground window belongs to the Live process (main window or a plugin window)."""
+    if sys.platform != "win32":
+        return True
+    import ctypes
+    from ctypes import wintypes
+    u = ctypes.windll.user32
+    live = find_ableton_hwnd()
+    if not live:
+        return True  # nothing to focus
+    fg = u.GetForegroundWindow()
+    if not fg:
+        return False
+    pid_fg, pid_live = wintypes.DWORD(), wintypes.DWORD()
+    u.GetWindowThreadProcessId(fg, ctypes.byref(pid_fg))
+    u.GetWindowThreadProcessId(live, ctypes.byref(pid_live))
+    return pid_fg.value == pid_live.value and not u.IsIconic(live)
+
+
 def focus_ableton():
     if sys.platform != "win32":
         return False

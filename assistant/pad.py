@@ -234,6 +234,9 @@ class PadController:
         self._mods = set()
         self._down = {}  # key name -> pid, so release works even if modifiers go up first
         self.scroller = Scroller(pc.get("auto_hover", True))
+        # "focus_and_act": a button press brings Live forward if needed, then runs.
+        # "focus_only": the press that brings Live forward does nothing else.
+        self.focus_mode = pc.get("focus_mode", "focus_and_act")
         self.pressed = set()
         self.live = {"playing": False, "metronome": False, "loop": False, "record": False,
                      "session_record": False, "count_in": False, "punch_in": False, "punch_out": False}
@@ -303,23 +306,29 @@ class PadController:
         if repeat:
             return
         if pid == MOD:
+            self._q.put(None)  # just bring Live forward
             return
         mod = MOD in self.pressed
         if pid == "b1":  # voice is handled by the trigger; MOD+K1 = "that was wrong"
+            self._q.put(None)
             if mod:
                 self.assistant.mark_wrong()
             return
         acts = (MOD_ACTIONS.get(pid) if mod else None) or ACTIONS.get(pid)
-        if acts:
-            self._q.put(acts)
+        self._q.put(acts)
 
     def _worker(self):
         while True:
             acts = self._q.get()
             a = self.assistant.actions
-            if a is None:
-                continue
             try:
+                from .keys import ableton_in_front, focus_ableton
+                if not ableton_in_front():
+                    focus_ableton()
+                    if self.focus_mode == "focus_only":
+                        continue
+                if a is None or not acts:
+                    continue
                 a.run(acts)
                 self._refresh()
             except Exception as e:

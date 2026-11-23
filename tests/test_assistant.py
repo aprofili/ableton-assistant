@@ -445,5 +445,47 @@ class PadTests(unittest.TestCase):
         self.assertEqual(len(calls), 3)
 
 
+class MacroTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        from assistant import macros
+        self.m = macros
+        self.old = macros.STORE
+        macros.STORE = os.path.join(tempfile.mkdtemp(), "m.json")
+
+    def tearDown(self):
+        self.m.STORE = self.old
+
+    def test_learn_generalizes_numbers_and_names(self):
+        from assistant import router
+        norm = router.normalize("Please set a flag at bar 13 and title it drum loop.")
+        got = self.m.learn(norm, [{"type": "add_section", "bar": 13, "name": "drum loop"}])
+        self.assertIsNotNone(got)
+        hit = self.m.match(router.normalize("set a flag at bar twenty one and title it verse"))
+        self.assertEqual(hit[1], [{"type": "add_section", "bar": 21, "name": "verse"}])
+        self.assertIsNone(self.m.match(router.normalize("set a flag at bar 5")))
+
+    def test_ambiguous_or_loose_not_learned(self):
+        self.assertIsNone(self.m.learn("go to bar 4 bar 4", [{"type": "goto_bar", "bar": 4}]))  # number twice
+        self.assertIsNone(self.m.learn("do it 4", [{"type": "goto_bar", "bar": 4}]))  # too little fixed text
+        self.assertIsNone(self.m.learn("make a marker at bar 3 called chorus",
+                                       [{"type": "add_section", "bar": 3, "name": "Course"}]))  # name not heard
+
+    def test_forget_and_dedupe(self):
+        norm = "set the loop from 5 to 9"
+        acts = [{"type": "set_loop", "start_bar": 5, "end_bar": 9}]
+        mac = self.m.learn(norm, acts)
+        self.assertIsNone(self.m.learn(norm, acts))
+        self.assertEqual(self.m.match("set the loop from 2 to 3")[1][0]["end_bar"], 3)
+        self.assertTrue(self.m.forget(mac["id"]))
+        self.assertIsNone(self.m.match("set the loop from 2 to 3"))
+
+    def test_section_with_and_call_it_is_local(self):
+        from assistant import router
+        acts, src = router.route("Create a section marker at bar 13 and call it drum loop.")
+        self.assertEqual(src, "local")
+        self.assertEqual(acts, [{"type": "add_section", "bar": 13, "name": "Drum Loop"}])
+
+
 if __name__ == "__main__":
     unittest.main()
