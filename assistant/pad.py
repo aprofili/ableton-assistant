@@ -109,20 +109,27 @@ def label_for(pid, st):
 
 # ---- mouse wheel -----------------------------------------------------------
 class Scroller:
-    """Sends wheel events to Live. Horizontal by default; vertical when the modifier is held.
-    Fast turning accelerates so one flick can cross a whole project."""
+    """Sends wheel events to Live like a real wheel: one tick in, one notch out, no coasting.
+    Ticks that sit in the queue longer than `stale` are dropped, so the scroll stops when the dial does.
+    At the start of each burst, Live is focused and the cursor is parked on the arrangement/clip area,
+    since Live scrolls whatever is under the cursor."""
 
-    def __init__(self, auto_hover=True, step=120, max_mult=12):
+    def __init__(self, auto_hover=True, step=120, max_mult=3, point=(0.5, 0.3), stale=0.15, idle=0.6):
         self.auto_hover = auto_hover
         self.step = step
         self.max_mult = max_mult
+        self.point = point
+        self.stale = stale
+        self.idle = idle
         self._last = 0.0
         self._dir = 0
         self._mult = 1
+        self._burst_end = 0.0
 
     def _mult_for(self, direction):
+        """Mild speed-up for a fast spin; resets as soon as the dial slows or reverses."""
         now = time.time()
-        if direction == self._dir and now - self._last < 0.12:
+        if direction == self._dir and now - self._last < 0.04:
             self._mult = min(self._mult + 1, self.max_mult)
         else:
             self._mult = 1
@@ -130,16 +137,14 @@ class Scroller:
         return self._mult
 
     def scroll(self, direction, vertical):
-        """direction: +1 = right / down, -1 = left / up. Returns immediately: the keyboard hook thread
-        must never block (window enumeration + SendInput there made scrolling lag), so the work is
-        queued to a worker that merges ticks that arrive together into one wheel event."""
+        """direction: +1 = right / down, -1 = left / up. Returns immediately (hook thread must not block)."""
         if sys.platform != "win32":
             return False
         delta = self.step * self._mult_for(direction)
         if self._q is None:
             self._q = queue.Queue()
             threading.Thread(target=self._worker, daemon=True, name="pad-scroll").start()
-        self._q.put((direction * delta, vertical))
+        self._q.put((direction * delta, vertical, time.time()))
         return True
 
     _q = None
@@ -147,13 +152,17 @@ class Scroller:
 
     def _worker(self):
         while True:
-            amount, vertical = self._q.get()
+            amount, vertical, t0 = self._q.get()
             try:
-                while True:  # merge everything already waiting (same axis)
+                if time.time() - t0 > self.stale:
+                    continue  # backlog from a stopped dial: drop it
+                while True:  # merge ticks already waiting (same axis)
                     try:
-                        a2, v2 = self._q.get(timeout=0.004)
+                        a2, v2, t2 = self._q.get(timeout=0.004)
                     except queue.Empty:
                         break
+                    if time.time() - t2 > self.stale:
+                        continue
                     if v2 != vertical:
                         self._emit(amount, vertical)
                         amount, vertical = a2, v2
@@ -164,9 +173,35 @@ class Scroller:
                 log.exception("scroll failed")
 
     def _emit(self, amount, vertical):
-        if not self._over_live():
-            return
+        now = time.time()
+        if now - self._burst_end > self.idle:
+            if not self._start_burst():
+                return
+        self._burst_end = now
         self._send(-amount if vertical else amount, vertical)
+        log.debug("scroll %s %s (%.0f ms)", amount, vertical, (time.time() - now) * 1000)
+
+    def _start_burst(self):
+        """Focus Live if needed and park the cursor on the arrangement area."""
+        from .keys import ableton_in_front, focus_ableton
+        if not self._live_hwnd():
+            return False
+        if not ableton_in_front():
+            focus_ableton()
+        if self.auto_hover:
+            self._park()
+        return True
+
+    def _park(self):
+        u = ctypes.windll.user32
+        live = self._live_hwnd()
+
+        class RECT(ctypes.Structure):
+            _fields_ = [("l", ctypes.c_long), ("t", ctypes.c_long), ("r", ctypes.c_long), ("b", ctypes.c_long)]
+
+        r = RECT()
+        u.GetWindowRect(live, ctypes.byref(r))
+        u.SetCursorPos(int(r.l + (r.r - r.l) * self.point[0]), int(r.t + (r.b - r.t) * self.point[1]))
 
     def _live_hwnd(self):
         from .keys import find_ableton_hwnd
@@ -177,30 +212,6 @@ class Scroller:
         h = find_ableton_hwnd()
         self._live = (now, h)
         return h
-
-    def _over_live(self):
-        u = ctypes.windll.user32
-        live = self._live_hwnd()
-        if not live:
-            return False
-
-        class POINT(ctypes.Structure):
-            _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
-
-        class RECT(ctypes.Structure):
-            _fields_ = [("l", ctypes.c_long), ("t", ctypes.c_long), ("r", ctypes.c_long), ("b", ctypes.c_long)]
-
-        pt = POINT()
-        u.GetCursorPos(ctypes.byref(pt))
-        under = u.WindowFromPoint(pt)
-        if under and u.GetAncestor(under, 2) == live:
-            return True
-        if not self.auto_hover:
-            return False
-        r = RECT()
-        u.GetWindowRect(live, ctypes.byref(r))
-        u.SetCursorPos(int(r.l + (r.r - r.l) * 0.6), int(r.t + (r.b - r.t) * 0.45))
-        return True
 
     @staticmethod
     def _send(amount, vertical):
@@ -233,7 +244,8 @@ class PadController:
         self.by_combo = {parse_combo(k): pid for pid, k in self.keys.items()}
         self._mods = set()
         self._down = {}  # key name -> pid, so release works even if modifiers go up first
-        self.scroller = Scroller(pc.get("auto_hover", True))
+        self.scroller = Scroller(pc.get("auto_hover", True), pc.get("scroll_step", 120), pc.get("scroll_max_mult", 3),
+                                 tuple(pc.get("scroll_point", (0.5, 0.3))))
         # "focus_and_act": a button press brings Live forward if needed, then runs.
         # "focus_only": the press that brings Live forward does nothing else.
         self.focus_mode = pc.get("focus_mode", "focus_and_act")

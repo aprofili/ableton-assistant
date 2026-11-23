@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.2
+- Dial scroll behaves like a real wheel: one tick, one notch, no coasting (stale ticks dropped), mild speed-up only on fast spins.
+- Each scroll burst focuses Live and parks the cursor on the arrangement/clip area. Config: `pad.scroll_step`, `pad.scroll_max_mult`, `pad.scroll_point`.
+
 ## 1.5.1
 - Fix: K7 view switch (Tab) did nothing because focusing Live tapped Alt, which opened Live's menu bar and swallowed the key. Focus is now a no-op when Live is already in front and no longer taps Alt first.
 - Pad map reacts instantly: Live pushes state changes (AbletonOSC listeners), the display flips optimistically on press, unavailable properties no longer stall polling, redraw only on change.
