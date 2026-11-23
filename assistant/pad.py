@@ -120,7 +120,7 @@ def icon_for(pid, st):
     if pid == "b10":
         return ("redo" if mod else "next"), ""
     if pid == "dial_press":
-        return "spark", ""
+        return "claude", ""
     if pid in ("dial_cw", "dial_ccw"):
         return ("scroll_v" if mod else "scroll_h"), ""
     return "", ""

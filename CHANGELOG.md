@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.4
+- Dial centre shows the Claude mark (orange) instead of the generic spark.
+
 ## 1.10.3
 - K2 = metronome toggle, MOD+K2 = tap tempo. K5 = solo selected track, MOD+K5 = mute selected track.
 

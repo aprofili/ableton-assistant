@@ -29,7 +29,7 @@ import math as _m
 
 from .icons_data import ICONS
 
-_FILLED = {"rec": "red", "stop": "fg", "play": "fg"}
+_FILLED = {"rec": "red", "stop": "fg", "play": "fg", "claude": "claude"}
 _RED_ICONS = {"rec", "rec_session"}
 
 
@@ -46,7 +46,9 @@ def _icon(c, name, cx, cy, r, col, lw):
         return False
     k = r * 2.2 / 24.0
     col = RED if name in _RED_ICONS else col
-    fill = {"red": RED, "fg": col}.get(_FILLED.get(name))
+    fill = {"red": RED, "fg": col, "claude": "#d97757"}.get(_FILLED.get(name))
+    if name == "claude":
+        col = fill
     for closed, pts in polys:
         flat = []
         for x, y in pts:
@@ -271,7 +273,7 @@ class PadMap:
         rb = r * 0.5
         dp = snap["dial_press"]
         ell(rb, fill=KEYON if dp["active"] else ("#2a3440" if dp["pressed"] else "#0d1014"), outline="#3a424d", width=ow)
-        ir = min(rb * sx, rb * sy) * 0.8
+        ir = min(rb * sx, rb * sy) * 1.0
         if not (dp.get("icon") and _icon(c, dp["icon"], X(cx), Y(cy), ir, FG, max(2, ir * 0.1))):
             self._ftext(X(cx), Y(cy), dp["label"], 2 * rb * sx * 0.85, 2 * rb * sy * 0.5, FG)
         ccw, cw = snap["dial_ccw"], snap["dial_cw"]
