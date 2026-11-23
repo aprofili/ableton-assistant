@@ -182,63 +182,94 @@ class PadMap:
             log.exception("Pad map draw failed")
         self.root.after(30, self._tick)
 
-    # ---- drawing
+    # ---- drawing: the layout is stretched to fill the whole window (shape accuracy matters less than size)
+    GX0, GX1, GY0, GY1 = 22.0, 436.0, 46.0, 266.0   # content bounds in device units
+
+    def _fit(self, text, maxw, maxh):
+        """Largest bold font (px) that fits `text` in maxw x maxh; cached."""
+        key = (text, int(maxw), int(maxh))
+        hit = self._fit_cache.get(key)
+        if hit:
+            return hit
+        import tkinter.font as tkf
+        lines = text.split("\n")
+        size = 8
+        for sz in range(90, 7, -2):
+            f = self._fonts.get(sz)
+            if f is None:
+                f = self._fonts[sz] = tkf.Font(family="Segoe UI", size=-sz, weight="bold")
+            if max(f.measure(l) for l in lines) <= maxw and f.metrics("linespace") * len(lines) <= maxh:
+                size = sz
+                break
+        if len(self._fit_cache) > 600:
+            self._fit_cache.clear()
+        self._fit_cache[key] = size
+        return size
+
+    def _ftext(self, cx, cy, text, w, h, color, anchor="center"):
+        sz = self._fit(text, w, h)
+        self.canvas.create_text(cx, cy, text=text, fill=color, anchor=anchor, justify="center",
+                                font=("Segoe UI", -sz, "bold"))
+
     def _draw(self, snap=None):
         c = self.canvas
+        if not hasattr(self, "_fonts"):
+            self._fonts, self._fit_cache = {}, {}
         w, h = max(c.winfo_width(), 200), max(c.winfo_height(), 150)
-        s = min(w / (W0 + 30), (h - 40) / (H0 - 10)) * 0.92
-        ox, oy = (w - W0 * s) / 2, (h - 20 - (H0 - 40) * s) / 2 - 30 * s
-        X = lambda v: ox + v * s
-        Y = lambda v: oy + v * s
-        self._xf = (ox, oy, s)
+        pad_x, top, bottom = 10, 8, 40
+        sx = (w - 2 * pad_x) / (self.GX1 - self.GX0)
+        sy = (h - top - bottom) / (self.GY1 - self.GY0)
+        ox, oy = pad_x - self.GX0 * sx, top - self.GY0 * sy
+        X = lambda v: ox + v * sx
+        Y = lambda v: oy + v * sy
+        self._xf = (ox, oy, sx, sy)
+        s = min(sx, sy)
         snap = snap or self.pad.snapshot()
         c.delete("all")
         x0, y0, x1, y1 = BODY_RECT
-        self._rrect(X(x0), Y(y0), X(x1), Y(y1), s * 14, BODY)
-        # dial: outer ring with grooves, centre button (not programmable on the ACK05)
+        self._rrect(X(x0), Y(y0), X(x1), Y(y1), s * 12, BODY)
         cx, cy, r = DIAL
         ow = max(1, int(s * 1.2))
-        c.create_oval(X(cx - r), Y(cy - r), X(cx + r), Y(cy + r), fill="#12161b", outline="#3a424d", width=ow)
+        ell = lambda rr, **kw: c.create_oval(X(cx - rr), Y(cy - rr), X(cx + rr), Y(cy + rr), **kw)
+        ell(r, fill="#12161b", outline="#3a424d", width=ow)
         for k in range(1, 6):
-            rr = r * (1 - 0.095 * k)
-            c.create_oval(X(cx - rr), Y(cy - rr), X(cx + rr), Y(cy + rr), outline="#242b34", width=1)
-        rb = r * 0.36
-        c.create_oval(X(cx - rb), Y(cy - rb), X(cx + rb), Y(cy + rb), fill="#0d1014", outline="#3a424d", width=ow)
+            ell(r * (1 - 0.095 * k), outline="#242b34", width=1)
+        rb = r * 0.5
         dp = snap["dial_press"]
-        c.create_oval(X(cx - rb), Y(cy - rb), X(cx + rb), Y(cy + rb), fill=KEYON if dp["active"] else ("#2a3440" if dp["pressed"] else "#0d1014"),
-                      outline="#3a424d", width=ow)
-        self._text(X(cx), Y(cy), dp["label"], s * 6, FG)
+        ell(rb, fill=KEYON if dp["active"] else ("#2a3440" if dp["pressed"] else "#0d1014"), outline="#3a424d", width=ow)
+        self._ftext(X(cx), Y(cy), dp["label"], 2 * rb * sx * 0.85, 2 * rb * sy * 0.5, FG)
         ccw, cw = snap["dial_ccw"], snap["dial_cw"]
-        # dial labels under the dial, on the body
-        self._text(X(100), Y(cy + r + 22), "\u21ba " + ccw["label"], s * 8.5, KEYDN if ccw["pressed"] else FG)
-        self._text(X(100), Y(cy + r + 42), "\u21bb " + cw["label"], s * 8.5, KEYDN if cw["pressed"] else FG)
-        # keys
+        lw, lh = (cx + r - x0 + 40) * sx, 20 * sy
+        self._ftext(X(x0 + 8 + (lw / sx) / 2), Y(cy + r + 14), "\u21ba " + ccw["label"], lw, lh, KEYDN if ccw["pressed"] else FG)
+        self._ftext(X(x0 + 8 + (lw / sx) / 2), Y(cy + r + 38), "\u21bb " + cw["label"], lw, lh, KEYDN if cw["pressed"] else FG)
         for pid, (a0, b0, a1, b1) in KEYS.items():
             k = snap[pid]
             fill = KEYDN if k["pressed"] else (KEYON if k["active"] else KEYC)
             self._rrect(X(a0), Y(b0), X(a1), Y(b1), s * 5, fill)
-            self._text(X(a0) + s * 4, Y(b0) + s * 3, pid.replace("b", "K"), s * 6, MUTED, anchor="nw")
-            self._text(X((a0 + a1) / 2), Y((b0 + b1) / 2 + 3), k["label"], s * (8 if (a1 - a0) < 60 else 11), FG)
+            kw, kh = (a1 - a0) * sx, (b1 - b0) * sy
+            self.canvas.create_text(X(a0) + 6, Y(b0) + 4, text=pid.replace("b", "K"), fill=MUTED, anchor="nw",
+                                    font=("Segoe UI", -self._fit("K10", kw * 0.3, kh * 0.18), "bold"))
+            self._ftext(X((a0 + a1) / 2), Y((b0 + b1) / 2) + kh * 0.06, k["label"], kw * 0.9, kh * 0.62, FG)
         if snap.get("_last"):
-            c.create_text(w / 2, Y(y1) + 28 * s, text=snap["_last"], fill=MUTED, font=("Segoe UI", max(9, int(s * 7))))
+            self._ftext(w / 2 - 12, h - 22, snap["_last"], w - 70, 26, MUTED)
         ok = snap["_connected"]  # connection to Live: green check / red cross
-        c.create_text(w - 18, h - 16, text="\u2713" if ok else "\u2717", fill=GREEN if ok else RED,
-                      font=("Segoe UI", 16, "bold"))
+        c.create_text(w - 18, h - 20, text="\u2713" if ok else "\u2717", fill=GREEN if ok else RED,
+                      font=("Segoe UI", -28, "bold"))
 
     def _click(self, e):
         try:
-            ox, oy, s = self._xf
-            x, y = (e.x - ox) / s, (e.y - oy) / s
+            ox, oy, sx, sy = self._xf
+            x, y = (e.x - ox) / sx, (e.y - oy) / sy
             for pid, (a0, b0, a1, b1) in KEYS.items():
                 if a0 <= x <= a1 and b0 <= y <= b1:
                     self.pad.click(pid)
                     return
             cx, cy, r = DIAL
-            if (x - cx) ** 2 + (y - cy) ** 2 <= (r * 0.36) ** 2:
+            if (x - cx) ** 2 + (y - cy) ** 2 <= (r * 0.5) ** 2:
                 self.pad.click("dial_press")
                 return
-            if (x - cx) ** 2 + (y - cy) ** 2 <= r * r or (abs(x - 100) < 60 and cy + r + 10 < y < cy + r + 55):
-                self.pad.click("dial_ccw" if (y > cy + r and y < cy + r + 32) or (y <= cy + r and x < cx) else "dial_cw")
+            if (x - cx) ** 2 + (y - cy) ** 2 <= r * r or (abs(x - 100) < 70 and cy + r < y < cy + r + 50):
+                self.pad.click("dial_ccw" if (y > cy + r and y < cy + r + 26) or (y <= cy + r and x < cx) else "dial_cw")
         except Exception:
             log.exception("pad map click")
 

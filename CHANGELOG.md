@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.9.2
+- Pad map stretches to fill the whole window with auto-sized text (shape is approximate); removed the "(hold)" hints from K1/K3 and "(turn dial)" from hold labels.
+
 ## 1.9.1
 - K5 = mute selected track, MOD+K5 = solo selected track (popup shows the result). Capture MIDI removed from the pad (still a voice command).
 
