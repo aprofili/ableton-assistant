@@ -274,8 +274,8 @@ class PadTests(unittest.TestCase):
         self.assertEqual(pad.label_for("b9", {"playing": True})[0], "Stop")
         self.assertEqual(pad.label_for("b9", {"playing": False})[0], "Play")
         self.assertEqual(pad.label_for("b9", {"vmod": True})[0], "Continue\nfrom stop")
-        self.assertTrue(pad.label_for("b5", {"metronome": True})[1])
-        self.assertEqual(pad.label_for("b5", {"vmod": True, "count_in": True})[0], "Count-in\nON")
+        self.assertTrue(pad.label_for("b2", {"vmod": True, "metronome": True})[1])
+        self.assertEqual(pad.label_for("b5", {})[0], "Capture\nMIDI")
         self.assertEqual(pad.label_for("b1", {"vmod": True})[0], "That was\nWRONG")
         self.assertEqual(pad.label_for("dial_cw", {"vmod": True})[0], "Scroll down")
         self.assertEqual(pad.label_for("dial_cw", {})[0], "Scroll right")
@@ -289,13 +289,12 @@ class PadTests(unittest.TestCase):
             for pid in ("b9", "b6", "b4"):
                 act.run(pad.ACTIONS[pid])
             act.run(pad.ACTIONS["b2"])         # K2 = tap tempo
-            act.run(pad.MOD_ACTIONS["b2"])     # MOD+K2 = capture MIDI
+            act.run(pad.ACTIONS["b5"])         # K5 = capture MIDI
             act.run(pad.MOD_ACTIONS["b8"])     # MOD+K8 = undo
             act.run(pad.MOD_ACTIONS["b9"])     # stopped + MOD -> continue
             live.props["is_playing"] = 1
             act.run(pad.ACTIONS["b9"])         # playing -> stop
             act.run(pad.MOD_ACTIONS["b4"])     # session record on
-            act.run(pad.MOD_ACTIONS["b5"])     # count-in 0 -> 1
             for _ in range(4):                 # punch cycle
                 act.run(pad.MOD_ACTIONS["b6"])
             act.run(pad.MOD_ACTIONS["b10"])    # MOD+K10 = redo
@@ -304,7 +303,7 @@ class PadTests(unittest.TestCase):
             self.assertEqual(sent, [
                 ("/live/song/start_playing",), ("/live/song/set/loop", 1), ("/live/song/set/record_mode", 1),
                 ("/live/song/tap_tempo",), ("/live/song/capture_midi",), ("/live/song/undo",), ("/live/song/continue_playing",), ("/live/song/stop_playing",),
-                ("/live/song/set/session_record", 1), ("/live/song/set/count_in_duration", 1),
+                ("/live/song/set/session_record", 1),
                 ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 0),
                 ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 1),
                 ("/live/song/set/punch_in", 0), ("/live/song/set/punch_out", 1),
@@ -468,7 +467,7 @@ class PadTests(unittest.TestCase):
         self.assertTrue(pc.hid_active())
 
 
-    def test_hold_k5_dial_changes_tempo_tap_toggles(self):
+    def test_hold_k2_dial_changes_tempo_tap_toggles(self):
         pad = self._pad_mod()
 
         class Asst:
@@ -480,17 +479,17 @@ class PadTests(unittest.TestCase):
         pc.handle = lambda pid, repeat=False: calls.append(pid)
         pc._nudge = lambda d: nudges.append(d)
         rep = lambda lo=0, hi=0, dial=0: bytes([2, 0xF0, lo, hi, 0, 0, 0, dial, 0, 0, 0, 0])
-        pc.hid_report(rep(lo=0x10))         # K5 down: nothing yet
+        pc.hid_report(rep(lo=0x02))         # K2 down: nothing yet
         self.assertEqual(calls, [])
-        pc.hid_report(rep())                # tap -> toggles metronome on release
-        self.assertEqual(calls, ["b5"])
-        pc.hid_report(rep(lo=0x10))
+        pc.hid_report(rep())                # tap -> taps tempo on release
+        self.assertEqual(calls, ["b2"])
+        pc.hid_report(rep(lo=0x02))
         pc.handle = pad.PadController.handle.__get__(pc)  # real handle for the dial branch
-        pc.hid_report(rep(lo=0x10, dial=1))
-        pc.hid_report(rep(lo=0x10, dial=2))
+        pc.hid_report(rep(lo=0x02, dial=1))
+        pc.hid_report(rep(lo=0x02, dial=2))
         pc.hid_report(rep())                # release after scrolling: no toggle
         self.assertEqual(nudges, [1, -1])
-        self.assertEqual(calls, ["b5"])
+        self.assertEqual(calls, ["b2"])
 
 
 class MacroTests(unittest.TestCase):

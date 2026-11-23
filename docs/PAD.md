@@ -5,10 +5,10 @@ Program each button/dial action in the XPPen driver to send the combo below (Ctr
 | Input | Key to send | Action | With MOD (K3) held |
 |---|---|---|---|
 | K1 | Ctrl+Alt+Shift+F1 | Voice, hold to talk | That was WRONG (saves feedback, see below) |
-| K2 | Ctrl+Alt+Shift+F2 | Tap tempo | Capture MIDI |
+| K2 | Ctrl+Alt+Shift+F2 | Tap tempo (hold + dial = tempo) | Metronome toggle |
 | K3 | Ctrl+Alt+Shift+F3 | **MOD**: hold it to change what the other inputs do | |
 | K4 (tall) | Ctrl+Alt+Shift+F4 | Record (arrangement) on/off | Session record on/off |
-| K5 | Ctrl+Alt+Shift+F5 | Metronome toggle | Count-in on/off (1 bar) |
+| K5 | Ctrl+Alt+Shift+F5 | Capture MIDI | (unassigned) |
 | K6 | Ctrl+Alt+Shift+F6 | Loop toggle | Punch cycle: in on, out on, in off, out off |
 | K7 (tall) | Ctrl+Alt+Shift+F7 | Session / Arrangement view (Tab) | Clip / Device detail view (Shift+Tab) |
 | K8 | Ctrl+Alt+Shift+F8 | Previous section marker | Undo |
@@ -36,4 +36,4 @@ Hold a button and turn the dial to change something; a plain tap still runs the 
 
 | Hold | Dial | Notes |
 |---|---|---|
-| K5 (Metronome) | Tempo ±1 BPM per click | popup shows the tempo; tap K5 toggles the metronome as before |
+| K2 (Tap tempo) | Tempo ±1 BPM per click | popup shows the tempo; a tap (no dial) taps tempo on release |
