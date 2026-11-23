@@ -5,7 +5,7 @@ Program each button/dial action in the XPPen driver to send the combo below (Ctr
 | Input | Key to send | Action | With MOD (K3) held |
 |---|---|---|---|
 | K1 | Ctrl+Alt+Shift+F1 | Voice, hold to talk | That was WRONG (saves feedback, see below) |
-| K2 | Ctrl+Alt+Shift+F2 | (unassigned) | (unassigned) |
+| K2 | Ctrl+Alt+Shift+F2 | Tap tempo | Capture MIDI |
 | K3 | Ctrl+Alt+Shift+F3 | **MOD**: hold it to change what the other inputs do | |
 | K4 (tall) | Ctrl+Alt+Shift+F4 | Record (arrangement) on/off | Session record on/off |
 | K5 | Ctrl+Alt+Shift+F5 | Metronome toggle | Count-in on/off (1 bar) |

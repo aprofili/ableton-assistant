@@ -266,6 +266,12 @@ class Actions:
     def a_redo(self, a):
         self.osc.send("/live/song/redo")
 
+    def a_tap_tempo(self, a):
+        self.osc.send("/live/song/tap_tempo")
+
+    def a_capture_midi(self, a):
+        self.osc.send("/live/song/capture_midi")
+
     # ---- tracks / levels (RØDECaster workflow) -------------------------
     def _track_names(self):
         return list(self.osc.query("/live/song/get/track_names"))

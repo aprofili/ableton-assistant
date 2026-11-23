@@ -288,6 +288,8 @@ class PadTests(unittest.TestCase):
             act = Actions(osc, {})
             for pid in ("b9", "b6", "b4"):
                 act.run(pad.ACTIONS[pid])
+            act.run(pad.ACTIONS["b2"])         # K2 = tap tempo
+            act.run(pad.MOD_ACTIONS["b2"])     # MOD+K2 = capture MIDI
             act.run(pad.MOD_ACTIONS["b8"])     # MOD+K8 = undo
             act.run(pad.MOD_ACTIONS["b9"])     # stopped + MOD -> continue
             live.props["is_playing"] = 1
@@ -301,7 +303,7 @@ class PadTests(unittest.TestCase):
             sent = [m for m in live.received if "/get/" not in m[0] and m[0] != "/live/test"]
             self.assertEqual(sent, [
                 ("/live/song/start_playing",), ("/live/song/set/loop", 1), ("/live/song/set/record_mode", 1),
-                ("/live/song/undo",), ("/live/song/continue_playing",), ("/live/song/stop_playing",),
+                ("/live/song/tap_tempo",), ("/live/song/capture_midi",), ("/live/song/undo",), ("/live/song/continue_playing",), ("/live/song/stop_playing",),
                 ("/live/song/set/session_record", 1), ("/live/song/set/count_in_duration", 1),
                 ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 0),
                 ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 1),
