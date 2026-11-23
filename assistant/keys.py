@@ -28,6 +28,37 @@ def find_ableton_hwnd():
     return found[0] if found else None
 
 
+def release_held_modifiers():
+    """Lift Ctrl/Alt/Shift that are physically/driver held (the pad sends Ctrl+Alt+Shift+Fn), so keys
+    and wheel events we inject are not read as modified."""
+    if sys.platform != "win32":
+        return
+    import ctypes
+    u = ctypes.windll.user32
+    for vk in (0x11, 0x12, 0x10, 0xA2, 0xA3, 0xA4, 0xA5, 0xA0, 0xA1):
+        if u.GetAsyncKeyState(vk) & 0x8000:
+            u.keybd_event(vk, 0, 0x0002, 0)
+
+
+def ableton_in_front():
+    """True if the foreground window belongs to the Live process (main window or a plugin window)."""
+    if sys.platform != "win32":
+        return True
+    import ctypes
+    from ctypes import wintypes
+    u = ctypes.windll.user32
+    live = find_ableton_hwnd()
+    if not live:
+        return True  # nothing to focus
+    fg = u.GetForegroundWindow()
+    if not fg:
+        return False
+    pid_fg, pid_live = wintypes.DWORD(), wintypes.DWORD()
+    u.GetWindowThreadProcessId(fg, ctypes.byref(pid_fg))
+    u.GetWindowThreadProcessId(live, ctypes.byref(pid_live))
+    return pid_fg.value == pid_live.value and not u.IsIconic(live)
+
+
 def focus_ableton():
     if sys.platform != "win32":
         return False
@@ -64,6 +95,7 @@ class KeySender:
         return getattr(self.Key, part)
 
     def press(self, combo):
+        release_held_modifiers()
         focus_ableton()
         parts = [self._parse(p) for p in combo.split("+")]
         mods, key = parts[:-1], parts[-1]

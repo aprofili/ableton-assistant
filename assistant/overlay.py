@@ -57,7 +57,8 @@ def monitors():
 
 
 class Overlay:
-    def __init__(self, opacity=0.85, enabled=True):
+    def __init__(self, opacity=0.85, enabled=True, position="bottom_left"):
+        self.position = position
         self.opacity = opacity
         self.enabled = enabled
         self.level_fn = None
@@ -174,8 +175,10 @@ class Overlay:
                 pass
             c = tk.Canvas(win, width=W, height=H, bg=KEY, highlightthickness=0)
             c.pack()
-            x = mx + (mw - W) // 2
-            y = my + int(48 * s)
+            if self.position == "top_center":
+                x, y = mx + (mw - W) // 2, my + int(48 * s)
+            else:  # bottom_left, above the taskbar
+                x, y = mx + int(24 * s), my + mh - H - int(72 * s)
             win.geometry(f"{W}x{H}+{x}+{y}")
             win.update_idletasks()
             self._click_through(win)

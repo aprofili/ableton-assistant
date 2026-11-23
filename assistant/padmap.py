@@ -1,6 +1,8 @@
 """Live map of the pad: a resizable/maximizable window drawn in the shape of the XPPen ACK05,
 each button labelled with what it does right now. Own Tk thread. Open from the tray: "Pad map"."""
+import json
 import logging
+import os
 import queue
 import threading
 
@@ -10,14 +12,16 @@ log = logging.getLogger("assistant")
 
 BODY, KEYC, KEYON, KEYDN = "#1b2027", "#2a313a", "#14532d", "#3b82f6"
 
-# normalized device coordinates (device is 1.0 wide, 0.86 tall): x0, y0, x1, y1
+# device geometry in pixels of the XPPen driver image (500 x 282): x0, y0, x1, y1
 KEYS = {
-    "b1": (0.36, 0.10, 0.50, 0.25), "b2": (0.53, 0.10, 0.67, 0.25), "b3": (0.70, 0.10, 0.84, 0.25),
-    "b4": (0.87, 0.10, 1.01, 0.43),
-    "b5": (0.36, 0.28, 0.50, 0.43), "b6": (0.53, 0.28, 0.67, 0.43), "b7": (0.70, 0.28, 0.84, 0.43),
-    "b8": (0.36, 0.46, 0.50, 0.61), "b9": (0.53, 0.46, 0.84, 0.61), "b10": (0.87, 0.46, 1.01, 0.61),
+    "b1": (184, 74, 236, 126), "b2": (245, 74, 297, 126), "b3": (304, 74, 356, 126),
+    "b7": (363, 74, 415, 188),
+    "b4": (184, 135, 236, 187), "b5": (245, 135, 297, 187), "b6": (304, 135, 356, 187),
+    "b8": (184, 196, 236, 248), "b9": (245, 196, 356, 248), "b10": (363, 196, 415, 248),
 }
-DIAL = (0.17, 0.36, 0.15)  # cx, cy, r
+BODY_RECT = (42, 60, 430, 262)
+DIAL = (78, 104, 52)  # cx, cy, outer radius (the dial overhangs the body's top-left corner)
+W0, H0 = 500.0, 282.0
 
 
 class PadMap:
@@ -27,7 +31,37 @@ class PadMap:
         self.q = queue.Queue()
         self.started = False
 
+    STATE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "ui_state.json")
+
+    def _save_open(self, is_open):
+        try:
+            os.makedirs(os.path.dirname(self.STATE), exist_ok=True)
+            try:
+                with open(self.STATE, encoding="utf-8") as f:
+                    st = json.load(f)
+            except Exception:
+                st = {}
+            st["padmap_open"] = bool(is_open)
+            with open(self.STATE, "w", encoding="utf-8") as f:
+                json.dump(st, f)
+        except Exception:
+            log.exception("Could not save pad map state")
+
+    def restore(self):
+        """Reopen the map if it was open when the assistant last ran."""
+        try:
+            with open(self.STATE, encoding="utf-8") as f:
+                if json.load(f).get("padmap_open"):
+                    self.show()
+        except Exception:
+            pass
+
+    def hide(self):
+        self._save_open(False)
+        self.root.withdraw()
+
     def show(self):
+        self._save_open(True)
         if not self.started:
             self.started = True
             threading.Thread(target=self._run, daemon=True, name="padmap").start()
@@ -47,7 +81,7 @@ class PadMap:
             self.canvas = tk.Canvas(self.root, bg=BG, highlightthickness=0)
             self.canvas.pack(fill="both", expand=True)
             self.full = False
-            self.root.protocol("WM_DELETE_WINDOW", self.root.withdraw)
+            self.root.protocol("WM_DELETE_WINDOW", self.hide)
             self.root.bind("<F11>", self._toggle_full)
             self.root.bind("<Escape>", lambda e: self._set_full(False))
             self.canvas.bind("<Double-Button-1>", self._toggle_full)
@@ -100,36 +134,36 @@ class PadMap:
     def _draw(self):
         c = self.canvas
         w, h = max(c.winfo_width(), 200), max(c.winfo_height(), 150)
-        s = min(w / 1.10, h / 0.84)
-        ox, oy = (w - s * 1.03) / 2 + s * 0.02, (h - s * 0.70) / 2
+        s = min(w / (W0 + 30), (h - 40) / (H0 - 10)) * 0.92
+        ox, oy = (w - W0 * s) / 2, (h - 20 - (H0 - 40) * s) / 2 - 30 * s
         X = lambda v: ox + v * s
         Y = lambda v: oy + v * s
         snap = self.pad.snapshot()
         c.delete("all")
-        # body + dial well
-        self._rrect(X(-0.02), Y(0.0), X(1.04), Y(0.70), s * 0.04, BODY)
+        x0, y0, x1, y1 = BODY_RECT
+        self._rrect(X(x0), Y(y0), X(x1), Y(y1), s * 14, BODY)
+        # dial: outer ring with grooves, centre button (not programmable on the ACK05)
         cx, cy, r = DIAL
-        c.create_oval(X(cx - r), Y(cy - r), X(cx + r), Y(cy + r), fill="#232a33", outline="#3a424d", width=max(1, int(s * 0.004)))
-        rr = r * 0.42
-        d = snap["dial_press"]
-        c.create_oval(X(cx - rr), Y(cy - rr), X(cx + rr), Y(cy + rr), fill=KEYDN if d["pressed"] else KEYC, outline="#3a424d")
-        self._text(X(cx), Y(cy), d["label"], s * 0.026, FG)
-        # dial rotate labels
+        ow = max(1, int(s * 1.2))
+        c.create_oval(X(cx - r), Y(cy - r), X(cx + r), Y(cy + r), fill="#12161b", outline="#3a424d", width=ow)
+        for k in range(1, 6):
+            rr = r * (1 - 0.095 * k)
+            c.create_oval(X(cx - rr), Y(cy - rr), X(cx + rr), Y(cy + rr), outline="#242b34", width=1)
+        rb = r * 0.36
+        c.create_oval(X(cx - rb), Y(cy - rb), X(cx + rb), Y(cy + rb), fill="#0d1014", outline="#3a424d", width=ow)
         ccw, cw = snap["dial_ccw"], snap["dial_cw"]
-        self._arrow(X(cx - r * 0.72), Y(cy - r * 0.62), "↺", ccw["pressed"], s)
-        self._arrow(X(cx + r * 0.72), Y(cy - r * 0.62), "↻", cw["pressed"], s)
-        self._text(X(cx - r * 0.62), Y(cy + r * 0.72), ccw["label"], s * 0.021, MUTED)
-        self._text(X(cx + r * 0.62), Y(cy + r * 0.72), cw["label"], s * 0.021, MUTED)
+        # dial labels under the dial, on the body
+        self._text(X(100), Y(cy + r + 22), "\u21ba " + ccw["label"], s * 8.5, KEYDN if ccw["pressed"] else FG)
+        self._text(X(100), Y(cy + r + 42), "\u21bb " + cw["label"], s * 8.5, KEYDN if cw["pressed"] else FG)
         # keys
-        for pid, (x0, y0, x1, y1) in KEYS.items():
+        for pid, (a0, b0, a1, b1) in KEYS.items():
             k = snap[pid]
             fill = KEYDN if k["pressed"] else (KEYON if k["active"] else KEYC)
-            self._rrect(X(x0), Y(y0), X(x1), Y(y1), s * 0.015, fill)
-            self._text(X(x0) + s * 0.012, Y(y0) + s * 0.012, pid.replace("b", "K"), s * 0.016, MUTED, anchor="nw")
-            self._text(X((x0 + x1) / 2), Y((y0 + y1) / 2), k["label"], s * 0.021 if (x1 - x0) < 0.2 else s * 0.03, FG)
+            self._rrect(X(a0), Y(b0), X(a1), Y(b1), s * 5, fill)
+            self._text(X(a0) + s * 4, Y(b0) + s * 3, pid.replace("b", "K"), s * 6, MUTED, anchor="nw")
+            self._text(X((a0 + a1) / 2), Y((b0 + b1) / 2 + 3), k["label"], s * (8 if (a1 - a0) < 60 else 11), FG)
         if snap.get("_last"):
-            c.create_text(w / 2, Y(0.66), text=snap["_last"], fill=MUTED, font=("Segoe UI", max(9, int(s * 0.02))))
-        # footer
+            c.create_text(w / 2, Y(y1) + 28 * s, text=snap["_last"], fill=MUTED, font=("Segoe UI", max(9, int(s * 7))))
         status = "Connected to Live" if snap["_connected"] else "Waiting for Ableton (is AbletonOSC enabled?)"
         c.create_text(w / 2, h - 12, text=status + "   |   F11 or double-click: fullscreen", fill=GREEN if snap["_connected"] else AMBER,
                       font=("Segoe UI", 10))
@@ -139,7 +173,7 @@ class PadMap:
                                 font=("Segoe UI", max(7, int(size * 0.72)), "bold"))
 
     def _arrow(self, x, y, ch, pressed, s):
-        self.canvas.create_text(x, y, text=ch, fill=KEYDN if pressed else FG, font=("Segoe UI", max(12, int(s * 0.05))))
+        self.canvas.create_text(x, y, text=ch, fill=KEYDN if pressed else FG, font=("Segoe UI", max(12, int(s * 14))))
 
     def _rrect(self, x0, y0, x1, y1, r, fill):
         pts = [x0 + r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y1 - r, x1, y1, x1 - r, y1, x0 + r, y1,

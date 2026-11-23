@@ -1,10 +1,10 @@
 """Button pad / dial support (built for the XPPen ACK05, works with any device that sends keys).
 
-Configure the device in its driver so each button sends the key listed in PAD_KEYS (F13-F24 and
-Pause: keys nothing else uses). Remap in config.json under "pad": {"keys": {"b2": "f5", ...}}.
+Configure the device in its driver so each button sends the combo listed in PAD_KEYS
+(Ctrl+Alt+Shift+F1..F12 and Insert: combos nothing else uses). Single keys (e.g. "f20") also work. Remap in config.json under "pad": {"keys": {"b2": "f5", ...}}.
 
-Layout (reading order):          dial: rotate = scroll, press = go to start
-  [b1][b2][b3][ b4 ]
+Layout (reading order):          dial: rotate = scroll (vertical while MOD held)
+  [b1][b2][b3=MOD][ b4 ]
   [b5][b6][b7][ tall]
   [b8][ b9 wide ][b10]
 
@@ -19,29 +19,44 @@ import time
 
 from pynput import keyboard
 
-from .trigger import key_name
+from .trigger import key_name, parse_combo
 
 log = logging.getLogger("assistant")
 
+_CSA = "ctrl+alt+shift+"
 PAD_KEYS = {
-    "b1": "f13", "b2": "f14", "b3": "f15", "b4": "f16", "b5": "f17", "b6": "f18",
-    "b7": "f19", "b8": "f20", "b9": "f21", "b10": "f22",
-    "dial_cw": "f23", "dial_ccw": "f24", "dial_press": "pause",
+    "b1": _CSA + "f1", "b2": _CSA + "f2", "b3": _CSA + "f3", "b4": _CSA + "f4", "b5": _CSA + "f5",
+    "b6": _CSA + "f6", "b7": _CSA + "f7", "b8": _CSA + "f8", "b9": _CSA + "f9", "b10": _CSA + "f10",
+    "dial_cw": _CSA + "f11", "dial_ccw": _CSA + "f12", "dial_press": _CSA + "insert",
 }
+MODS = {"ctrl", "alt", "shift", "cmd"}
 
-# id -> (action list or None, name). b1 is voice; b7 is the scroll modifier (hold).
+MOD = "b3"  # hold: modifier for every other input
+
+# id -> actions. K1 is voice (mod: "that was wrong"), K3 is the modifier itself.
 ACTIONS = {
-    "b2": [{"type": "undo"}],  # with K7 held: redo (see VMOD_ACTIONS)
+    "b2": [{"type": "undo"}],
     "b4": [{"type": "record", "on": "toggle"}],
     "b5": [{"type": "metronome", "on": "toggle"}],
     "b6": [{"type": "loop", "on": "toggle"}],
+    "b7": [{"type": "key", "keys": "tab"}],  # Live: toggle Session / Arrangement view
     "b8": [{"type": "prev_cue"}],
-    "b9": [{"type": "playpause"}],
+    "b9": [{"type": "playstop"}],
     "b10": [{"type": "next_cue"}],
-    "dial_press": [{"type": "osc", "address": "/live/song/set/current_song_time", "args": [0.0]}],
 }
 
-VMOD_ACTIONS = {"b2": [{"type": "redo"}]}
+# with MOD held
+MOD_ACTIONS = {
+    "b2": [{"type": "redo"}],
+    "b4": [{"type": "session_record", "on": "toggle"}],
+    "b5": [{"type": "count_in_toggle"}],
+    "b6": [{"type": "punch_cycle"}],
+    "b7": [{"type": "key", "keys": "shift+tab"}],  # Live: toggle Clip / Device detail view
+    "b8": [{"type": "goto_start"}],
+    "b9": [{"type": "playstop", "continue": True}],
+    "b10": [{"type": "goto_end"}],
+}
+VMOD_ACTIONS = MOD_ACTIONS  # old name
 
 NAMES = {"b1": "K1", "b2": "K2", "b3": "K3", "b4": "K4", "b5": "K5", "b6": "K6", "b7": "K7",
          "b8": "K8", "b9": "K9", "b10": "K10", "dial_cw": "Dial CW", "dial_ccw": "Dial CCW",
@@ -49,33 +64,46 @@ NAMES = {"b1": "K1", "b2": "K2", "b3": "K3", "b4": "K4", "b5": "K5", "b6": "K6",
 
 
 def label_for(pid, st):
-    """(label, active) for a pad input given state st: playing, metronome, loop, record, listening, vmod."""
+    """(label, active) for a pad input given state st: playing, metronome, loop, record, listening,
+    vmod (MOD held), count_in, punch_in, punch_out, session_record."""
+    mod = bool(st.get("vmod"))
     if pid == "b1":
+        if mod:
+            return "That was\nWRONG", False
         return ("Listening..." if st.get("listening") else "Voice\n(hold)"), bool(st.get("listening"))
     if pid == "b2":
-        return ("Redo" if st.get("vmod") else "Undo"), False
+        return ("Redo" if mod else "Undo"), False
     if pid == "b3":
-        return "That was\nWRONG", False
+        return "MOD\n(hold)", mod
     if pid == "b4":
+        if mod:
+            return ("Stop session\nrecord" if st.get("session_record") else "Session\nrecord"), bool(st.get("session_record"))
         return ("Stop\nrecording" if st.get("record") else "Record"), bool(st.get("record"))
     if pid == "b5":
+        if mod:
+            return ("Count-in\nON" if st.get("count_in") else "Count-in\nOFF"), bool(st.get("count_in"))
         return ("Metronome\nON" if st.get("metronome") else "Metronome\nOFF"), bool(st.get("metronome"))
     if pid == "b6":
+        if mod:
+            pi, po = bool(st.get("punch_in")), bool(st.get("punch_out"))
+            return "Punch\nIN %s\nOUT %s" % ("on" if pi else "off", "on" if po else "off"), pi or po
         return ("Loop\nON" if st.get("loop") else "Loop\nOFF"), bool(st.get("loop"))
     if pid == "b7":
-        return "Hold:\nscroll up/down", bool(st.get("vmod"))
+        return ("Clip / Device\nview" if mod else "Session /\nArrangement"), False
     if pid == "b8":
-        return "Previous\nsection", False
+        return ("Go to\nstart" if mod else "Previous\nsection"), False
     if pid == "b9":
-        return ("Pause" if st.get("playing") else "Play"), bool(st.get("playing"))
+        if mod:
+            return ("Stop" if st.get("playing") else "Continue\nfrom stop"), bool(st.get("playing"))
+        return ("Stop" if st.get("playing") else "Play"), bool(st.get("playing"))
     if pid == "b10":
-        return "Next\nsection", False
+        return ("Go to\nend" if mod else "Next\nsection"), False
     if pid == "dial_press":
-        return "Go to\nstart", False
+        return "", False
     if pid == "dial_cw":
-        return ("Scroll down" if st.get("vmod") else "Scroll right"), False
+        return ("Scroll down" if mod else "Scroll right"), False
     if pid == "dial_ccw":
-        return ("Scroll up" if st.get("vmod") else "Scroll left"), False
+        return ("Scroll up" if mod else "Scroll left"), False
     return "", False
 
 
@@ -102,19 +130,57 @@ class Scroller:
         return self._mult
 
     def scroll(self, direction, vertical):
-        """direction: +1 = right / down, -1 = left / up."""
+        """direction: +1 = right / down, -1 = left / up. Returns immediately: the keyboard hook thread
+        must never block (window enumeration + SendInput there made scrolling lag), so the work is
+        queued to a worker that merges ticks that arrive together into one wheel event."""
         if sys.platform != "win32":
             return False
         delta = self.step * self._mult_for(direction)
-        if not self._over_live():
-            return False
-        self._send(-delta * direction if vertical else delta * direction, vertical)
+        if self._q is None:
+            self._q = queue.Queue()
+            threading.Thread(target=self._worker, daemon=True, name="pad-scroll").start()
+        self._q.put((direction * delta, vertical))
         return True
 
-    def _over_live(self):
+    _q = None
+    _live = (0.0, None)
+
+    def _worker(self):
+        while True:
+            amount, vertical = self._q.get()
+            try:
+                while True:  # merge everything already waiting (same axis)
+                    try:
+                        a2, v2 = self._q.get(timeout=0.004)
+                    except queue.Empty:
+                        break
+                    if v2 != vertical:
+                        self._emit(amount, vertical)
+                        amount, vertical = a2, v2
+                    else:
+                        amount += a2
+                self._emit(amount, vertical)
+            except Exception:
+                log.exception("scroll failed")
+
+    def _emit(self, amount, vertical):
+        if not self._over_live():
+            return
+        self._send(-amount if vertical else amount, vertical)
+
+    def _live_hwnd(self):
         from .keys import find_ableton_hwnd
+        t, h = self._live
+        now = time.time()
+        if h and now - t < 3.0 and ctypes.windll.user32.IsWindow(h):
+            return h
+        h = find_ableton_hwnd()
+        self._live = (now, h)
+        return h
+
+    def _over_live(self):
         u = ctypes.windll.user32
-        live = find_ableton_hwnd()
+        live = self._live_hwnd()
         if not live:
             return False
 
@@ -138,6 +204,8 @@ class Scroller:
 
     @staticmethod
     def _send(amount, vertical):
+        from .keys import release_held_modifiers
+        release_held_modifiers()
         class MOUSEINPUT(ctypes.Structure):
             _fields_ = [("dx", ctypes.c_long), ("dy", ctypes.c_long), ("mouseData", ctypes.c_ulong),
                         ("dwFlags", ctypes.c_ulong), ("time", ctypes.c_ulong),
@@ -162,12 +230,16 @@ class PadController:
         self.keys = dict(PAD_KEYS)
         self.keys.update(pc.get("keys", {}))
         self.assistant = assistant
-        self.by_key = {}
-        for pid, k in self.keys.items():
-            self.by_key[k.strip().lower()] = pid
+        self.by_combo = {parse_combo(k): pid for pid, k in self.keys.items()}
+        self._mods = set()
+        self._down = {}  # key name -> pid, so release works even if modifiers go up first
         self.scroller = Scroller(pc.get("auto_hover", True))
+        # "focus_and_act": a button press brings Live forward if needed, then runs.
+        # "focus_only": the press that brings Live forward does nothing else.
+        self.focus_mode = pc.get("focus_mode", "focus_and_act")
         self.pressed = set()
-        self.live = {"playing": False, "metronome": False, "loop": False, "record": False}
+        self.live = {"playing": False, "metronome": False, "loop": False, "record": False,
+                     "session_record": False, "count_in": False, "punch_in": False, "punch_out": False}
         self.live_ok = False
         self._q = queue.Queue()
         self._listener = None
@@ -190,7 +262,7 @@ class PadController:
     def snapshot(self):
         st = dict(self.live)
         st["listening"] = self.assistant.state == "listening"
-        st["vmod"] = "b7" in self.pressed
+        st["vmod"] = MOD in self.pressed
         out = {}
         for pid in self.keys:
             label, active = label_for(pid, st)
@@ -202,15 +274,24 @@ class PadController:
 
     # ---- input
     def _press(self, k):
-        pid = self.by_key.get(key_name(k))
+        n = key_name(k)
+        if n in MODS:
+            self._mods.add(n)
+            return
+        pid = self.by_combo.get(frozenset(self._mods | {n}))
         if not pid:
             return
+        self._down[n] = pid
         repeat = pid in self.pressed
         self.pressed.add(pid)
         self.handle(pid, repeat)
 
     def _release(self, k):
-        pid = self.by_key.get(key_name(k))
+        n = key_name(k)
+        if n in MODS:
+            self._mods.discard(n)
+            return
+        pid = self._down.pop(n, None)
         if pid:
             self.pressed.discard(pid)
 
@@ -218,26 +299,36 @@ class PadController:
         if pid in ("dial_cw", "dial_ccw"):
             direction = 1 if pid == "dial_cw" else -1
             try:
-                self.scroller.scroll(direction, vertical="b7" in self.pressed)
+                self.scroller.scroll(direction, vertical=MOD in self.pressed)
             except Exception:
                 log.exception("scroll failed")
             return
         if repeat:
             return
-        if pid == "b3":
-            self.assistant.mark_wrong()
+        if pid == MOD:
+            self._q.put(None)  # just bring Live forward
             return
-        acts = (VMOD_ACTIONS.get(pid) if "b7" in self.pressed else None) or ACTIONS.get(pid)
-        if acts:
-            self._q.put(acts)
+        mod = MOD in self.pressed
+        if pid == "b1":  # voice is handled by the trigger; MOD+K1 = "that was wrong"
+            self._q.put(None)
+            if mod:
+                self.assistant.mark_wrong()
+            return
+        acts = (MOD_ACTIONS.get(pid) if mod else None) or ACTIONS.get(pid)
+        self._q.put(acts)
 
     def _worker(self):
         while True:
             acts = self._q.get()
             a = self.assistant.actions
-            if a is None:
-                continue
             try:
+                from .keys import ableton_in_front, focus_ableton
+                if not ableton_in_front():
+                    focus_ableton()
+                    if self.focus_mode == "focus_only":
+                        continue
+                if a is None or not acts:
+                    continue
                 a.run(acts)
                 self._refresh()
             except Exception as e:
@@ -248,9 +339,18 @@ class PadController:
         osc = self.assistant.osc
         if osc is None:
             return
-        q = lambda addr: bool(osc.query(addr, timeout=0.5)[0])
+        def q(addr, default=False):
+            try:
+                return bool(osc.query(addr, timeout=0.5)[0])
+            except TimeoutError:
+                if addr.endswith("is_playing"):
+                    raise
+                return default  # property unavailable (e.g. count-in patch missing)
         self.live = {"playing": q("/live/song/get/is_playing"), "metronome": q("/live/song/get/metronome"),
-                     "loop": q("/live/song/get/loop"), "record": q("/live/song/get/record_mode")}
+                     "loop": q("/live/song/get/loop"), "record": q("/live/song/get/record_mode"),
+                     "session_record": q("/live/song/get/session_record"),
+                     "count_in": q("/live/song/get/count_in_duration"),
+                     "punch_in": q("/live/song/get/punch_in"), "punch_out": q("/live/song/get/punch_out")}
         self.live_ok = True
 
     def _poll(self):

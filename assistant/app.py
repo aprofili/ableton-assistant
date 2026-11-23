@@ -46,8 +46,9 @@ def beep(cfg, kind):
 
 class Outcome:
     """Truthy result of a handled command: where it was routed and what ran."""
-    def __init__(self, source, actions, text="", before=None):
+    def __init__(self, source, actions, text="", before=None, macro_id=None):
         self.source, self.actions, self.text, self.before = source, actions, text, before
+        self.macro_id = macro_id  # learned macro that produced / was created from this command
 
     def __bool__(self):
         return True
@@ -60,6 +61,14 @@ def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None, on_event=
     from . import feedback
     norm = router.normalize(text)
     prior_bad = feedback.bad_for(norm)
+    macro_id = None
+    if acts is None and not dry:
+        from . import macros
+        hit = macros.match(norm)
+        if hit:
+            macro_id, acts = hit
+            src = "learned"
+            log.info("Matched learned macro %s", macro_id)
     hint = None
     if prior_bad and cfg["claude"]["enabled"] and not dry:
         hint = ("The user marked this earlier interpretation of the same phrase as WRONG: "
@@ -76,8 +85,13 @@ def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None, on_event=
         from . import claude_api
         if on_event:
             on_event("api_start", text)
-        acts = claude_api.ask(text, actions.state(), shortcuts.known_summary(), cfg["claude"]["model"], hint=hint)
+        t_api = time.time()
+        state = actions.state()
+        t_state = time.time()
+        acts = claude_api.ask(text, state, shortcuts.known_summary(), cfg["claude"]["model"], hint=hint)
+        log.info("Claude call: state %.1fs, API %.1fs", t_state - t_api, time.time() - t_state)
         src = "claude"
+        macro_id = None
         keyed = [a for a in acts if a["type"] == "key" and a.get("learn_phrases")]
         if len(acts) == 1 and keyed:
             if shortcuts.learn(keyed[0]["keys"], keyed[0]["learn_phrases"]):
@@ -93,11 +107,25 @@ def handle_text(text, cfg, actions, shortcuts, dry=False, notify=None, on_event=
         except Exception:
             pass
         actions.run(acts)
+        if src == "claude":
+            try:  # turn this solved example into a local template for next time
+                from . import macros
+                if prior_bad:  # the old interpretation was wrong: drop any macro that matches it
+                    for old in [m for m in macros._load() if macros._instantiate(m, norm) is not None]:
+                        macros.forget(old["id"])
+                m = macros.learn(norm, acts)
+                if m:
+                    macro_id = m["id"]
+                    log.info("Learned macro %s: %s", m["id"], m["template"])
+                    if notify:
+                        notify(f"Learned: \"{m['template']}\" (runs locally next time)")
+            except Exception:
+                log.exception("Macro learning failed")
     log.info("done in %.2fs", time.time() - t0)
     if src == "claude" and on_event:
         from .describe import describe
         on_event("api_done", describe(acts))
-    return Outcome(src, acts, text, before)
+    return Outcome(src, acts, text, before, macro_id)
 
 
 def select_mic(cfg):

@@ -11,3 +11,4 @@ demo_*.png
 demo_overlay.log
 restart.log
 data/feedback/
+data/ui_state.json

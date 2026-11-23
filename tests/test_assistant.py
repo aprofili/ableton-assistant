@@ -271,9 +271,12 @@ class PadTests(unittest.TestCase):
 
     def test_labels_follow_state(self):
         pad = self._pad_mod()
-        self.assertEqual(pad.label_for("b9", {"playing": True})[0], "Pause")
+        self.assertEqual(pad.label_for("b9", {"playing": True})[0], "Stop")
         self.assertEqual(pad.label_for("b9", {"playing": False})[0], "Play")
+        self.assertEqual(pad.label_for("b9", {"vmod": True})[0], "Continue\nfrom stop")
         self.assertTrue(pad.label_for("b5", {"metronome": True})[1])
+        self.assertEqual(pad.label_for("b5", {"vmod": True, "count_in": True})[0], "Count-in\nON")
+        self.assertEqual(pad.label_for("b1", {"vmod": True})[0], "That was\nWRONG")
         self.assertEqual(pad.label_for("dial_cw", {"vmod": True})[0], "Scroll down")
         self.assertEqual(pad.label_for("dial_cw", {})[0], "Scroll right")
 
@@ -283,15 +286,29 @@ class PadTests(unittest.TestCase):
         osc = AbletonOSC("127.0.0.1", 21010, 21011)
         try:
             act = Actions(osc, {})
-            for pid in ("b9", "b6", "b4", "b2", "dial_press"):
+            for pid in ("b9", "b6", "b4", "b2"):
                 act.run(pad.ACTIONS[pid])
+            act.run(pad.MOD_ACTIONS["b9"])     # stopped + MOD -> continue
             live.props["is_playing"] = 1
-            act.run(pad.ACTIONS["b9"])
-            time.sleep(0.2)
+            act.run(pad.ACTIONS["b9"])         # playing -> stop
+            act.run(pad.MOD_ACTIONS["b4"])     # session record on
+            act.run(pad.MOD_ACTIONS["b5"])     # count-in 0 -> 1
+            for _ in range(4):                 # punch cycle
+                act.run(pad.MOD_ACTIONS["b6"])
+            live.props["song_length"] = 64.0
+            act.run(pad.MOD_ACTIONS["b8"])
+            act.run(pad.MOD_ACTIONS["b10"])
+            time.sleep(0.3)
             sent = [m for m in live.received if "/get/" not in m[0] and m[0] != "/live/test"]
             self.assertEqual(sent, [
-                ("/live/song/continue_playing",), ("/live/song/set/loop", 1), ("/live/song/set/record_mode", 1),
-                ("/live/song/undo",), ("/live/song/set/current_song_time", 0.0), ("/live/song/stop_playing",)])
+                ("/live/song/start_playing",), ("/live/song/set/loop", 1), ("/live/song/set/record_mode", 1),
+                ("/live/song/undo",), ("/live/song/continue_playing",), ("/live/song/stop_playing",),
+                ("/live/song/set/session_record", 1), ("/live/song/set/count_in_duration", 1),
+                ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 0),
+                ("/live/song/set/punch_in", 1), ("/live/song/set/punch_out", 1),
+                ("/live/song/set/punch_in", 0), ("/live/song/set/punch_out", 1),
+                ("/live/song/set/punch_in", 0), ("/live/song/set/punch_out", 0),
+                ("/live/song/set/current_song_time", 0.0), ("/live/song/set/current_song_time", 64.0)])
         finally:
             osc.close()
             live.close()
@@ -405,12 +422,69 @@ class PadTests(unittest.TestCase):
 
         pc = pad.PadController({"pad": {"keys": {"b2": "f5"}}}, Asst())
         pc.scroller.scroll = lambda d, vertical: calls.append((d, vertical))
-        self.assertEqual(pc.by_key["f5"], "b2")
+        self.assertEqual(pc.by_combo[frozenset({"f5"})], "b2")
         pc.handle("dial_cw")
-        pc.pressed.add("b7")
+        pc.pressed.add("b3")
         pc.handle("dial_ccw")
         self.assertEqual(calls, [(1, False), (-1, True)])
-        self.assertEqual(pc.voice_key, "f13")
+        self.assertEqual(pc.voice_key, "ctrl+alt+shift+f1")
+        pad.key_name = lambda k: k
+        C, A, S = "ctrl", "alt", "shift"
+        pc2 = pad.PadController({}, Asst())
+        pc2.handle = lambda pid, repeat=False: calls.append(pid)
+        for k in (C, A, S, "f3"):
+            pc2._press(k)
+        for k in (C, A, S):  # modifiers up before the key
+            pc2._release(k)
+        self.assertIn("b3", pc2.pressed)
+        pc2._release("f3")
+        self.assertNotIn("b3", pc2.pressed)
+        self.assertEqual(calls[-1], "b3")
+        pc2._press("f3")  # bare F3 must not trigger
+        self.assertEqual(calls[-1], "b3")
+        self.assertEqual(len(calls), 3)
+
+
+class MacroTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        from assistant import macros
+        self.m = macros
+        self.old = macros.STORE
+        macros.STORE = os.path.join(tempfile.mkdtemp(), "m.json")
+
+    def tearDown(self):
+        self.m.STORE = self.old
+
+    def test_learn_generalizes_numbers_and_names(self):
+        from assistant import router
+        norm = router.normalize("Please set a flag at bar 13 and title it drum loop.")
+        got = self.m.learn(norm, [{"type": "add_section", "bar": 13, "name": "drum loop"}])
+        self.assertIsNotNone(got)
+        hit = self.m.match(router.normalize("set a flag at bar twenty one and title it verse"))
+        self.assertEqual(hit[1], [{"type": "add_section", "bar": 21, "name": "verse"}])
+        self.assertIsNone(self.m.match(router.normalize("set a flag at bar 5")))
+
+    def test_ambiguous_or_loose_not_learned(self):
+        self.assertIsNone(self.m.learn("go to bar 4 bar 4", [{"type": "goto_bar", "bar": 4}]))  # number twice
+        self.assertIsNone(self.m.learn("do it 4", [{"type": "goto_bar", "bar": 4}]))  # too little fixed text
+        self.assertIsNone(self.m.learn("make a marker at bar 3 called chorus",
+                                       [{"type": "add_section", "bar": 3, "name": "Course"}]))  # name not heard
+
+    def test_forget_and_dedupe(self):
+        norm = "set the loop from 5 to 9"
+        acts = [{"type": "set_loop", "start_bar": 5, "end_bar": 9}]
+        mac = self.m.learn(norm, acts)
+        self.assertIsNone(self.m.learn(norm, acts))
+        self.assertEqual(self.m.match("set the loop from 2 to 3")[1][0]["end_bar"], 3)
+        self.assertTrue(self.m.forget(mac["id"]))
+        self.assertIsNone(self.m.match("set the loop from 2 to 3"))
+
+    def test_section_with_and_call_it_is_local(self):
+        from assistant import router
+        acts, src = router.route("Create a section marker at bar 13 and call it drum loop.")
+        self.assertEqual(src, "local")
+        self.assertEqual(acts, [{"type": "add_section", "bar": 13, "name": "Drum Loop"}])
 
 
 if __name__ == "__main__":

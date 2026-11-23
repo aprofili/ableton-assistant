@@ -12,6 +12,7 @@ from .shortcuts import Shortcuts
 from .overlay import Overlay
 from .pad import PadController
 from .padmap import PadMap
+from .pad import MOD as MOD_KEY
 
 log = logging.getLogger("assistant")
 _mutex = None
@@ -40,7 +41,7 @@ class Assistant:
         self.osc = self.actions = self.rec = self.stt = self.trigger = None
         self.shortcuts = Shortcuts()
         ov = cfg.get("overlay", {})
-        self.overlay = Overlay(ov.get("opacity", 0.85), ov.get("enabled", True))
+        self.overlay = Overlay(ov.get("opacity", 0.85), ov.get("enabled", True), ov.get("position", "bottom_left"))
         self.overlay.level_fn = lambda: self.rec.level if self.rec else 0.0
         self._api_active = False
         self.last = None
@@ -95,8 +96,9 @@ class Assistant:
             t = self.cfg["trigger"]
             self.trigger = Trigger(t["keys"], t["mode"], self._on_start, self._on_stop)
             if self.pad.enabled:
-                self.trigger.add_combo(self.pad.voice_key)
+                self.trigger.add_combo(self.pad.voice_key, suppress=lambda: MOD_KEY in self.pad.pressed)
                 self.pad.start()
+                self.padmap.restore()
             self.ready = True
             from . import updater
             updater.confirm()
@@ -154,7 +156,8 @@ class Assistant:
                 beep(self.cfg, "ok" if ok else "fail")
                 if ok and getattr(ok, "source", None):
                     self.last = {"text": text, "source": ok.source, "actions": ok.actions,
-                                 "before": ok.before, "ts": time.time()}
+                                 "before": ok.before, "ts": time.time(),
+                                 "macro": getattr(ok, "macro_id", None)}
                 if ok:
                     self.notify(f"“{text}”")
                 else:
@@ -235,6 +238,10 @@ class Assistant:
             from . import __version__
             feedback.record(last, now, normalize(last["text"]), __version__,
                             self.cfg.get("pad", {}).get("feedback_screenshot", True))
+            if last.get("macro"):
+                from . import macros
+                if macros.forget(last["macro"]):
+                    log.info("Forgot learned macro %s", last["macro"])
             log.info("FEEDBACK: marked wrong: %r -> %s", last["text"], last["actions"])
             beep(self.cfg, "fail")
             self.overlay.api_done(False, f"Noted as wrong: “{last['text']}”")
