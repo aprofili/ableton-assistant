@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.6
+- Solo is exclusive: soloing a track un-solos all others.
+
 ## 1.10.5
 - Claude mark on the dial is 25% smaller.
 
