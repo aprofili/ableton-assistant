@@ -423,7 +423,7 @@ class PadController:
                     continue
                 self._optimistic(acts)
                 a.run(acts)
-                threading.Timer(0.25, self._safe_refresh).start()  # confirm against Live
+                threading.Timer(0.75, self._safe_refresh).start()  # confirm against Live once the hold has expired
             except Exception as e:
                 log.info("Pad action failed: %s", e)
                 self._safe_refresh()
@@ -436,7 +436,9 @@ class PadController:
     def _push(self, addr, args):
         if addr.startswith("/live/song/get/") and args:
             key = self._LISTEN.get(addr.rsplit("/", 1)[1])
-            if key:
+            if key and time.time() >= self._hold.get(key, 0):
+                # (during the hold after our own optimistic flip, replies to the action's own "is it playing?"
+                # query also arrive here with the OLD value; ignore them, the refresh below confirms)
                 self.live[key] = bool(args[0])
                 self._stamp[key] = time.time()
                 self.live_ok = True
