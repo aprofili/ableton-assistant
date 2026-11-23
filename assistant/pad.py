@@ -80,6 +80,52 @@ HOLD_LABELS = {
 }
 
 
+# short caption under the dial icon while a button is held: kind -> (normal, with MOD)
+HOLD_CAPTION = {"tempo": ("\u00b11 BPM", "\u00b15 BPM"), "playhead": ("bar", "beat"), "track": ("track", "track"),
+                "volume": ("2%", "10%"), "pan": ("5%", "25%"),
+                "loop_move": ("bar", "beat"), "loop_start": ("bar", "beat"), "loop_end": ("bar", "beat")}
+
+
+def icon_for(pid, st):
+    """(icon name, caption) for a pad input; padmap draws the icon (text label is the fallback)."""
+    mod = bool(st.get("vmod"))
+    hold = HOLD_SCROLL.get(st.get("hold"))
+    if hold:
+        if pid == st["hold"]:
+            return "h_" + hold, ""
+        if pid in ("dial_cw", "dial_ccw"):
+            return "scroll_h", HOLD_CAPTION[hold][1 if mod else 0]
+    if pid == "b1":
+        return ("wrong" if mod else "mic"), ""
+    if pid == "b2":
+        return ("metronome" if mod else "tap"), ""
+    if pid == "b3":
+        return "mod", ""
+    if pid == "b4":
+        if mod:
+            return "rec_session", ""
+        return ("stop" if st.get("record") else "rec"), ""
+    if pid == "b5":
+        return ("solo" if mod else "mute"), ""
+    if pid == "b6":
+        return ("punch" if mod else "loop"), ""
+    if pid == "b7":
+        return ("device" if mod else "views"), ""
+    if pid == "b8":
+        return ("undo" if mod else "prev"), ""
+    if pid == "b9":
+        if st.get("playing"):
+            return "stop", ""
+        return ("continue" if mod else "play"), ""
+    if pid == "b10":
+        return ("redo" if mod else "next"), ""
+    if pid == "dial_press":
+        return "spark", ""
+    if pid in ("dial_cw", "dial_ccw"):
+        return ("scroll_v" if mod else "scroll_h"), ""
+    return "", ""
+
+
 def label_for(pid, st):
     """(label, active) for a pad input given state st: playing, metronome, loop, record, listening,
     vmod (MOD held), count_in, punch_in, punch_out, session_record."""
@@ -315,7 +361,8 @@ class PadController:
         for pid in self.keys:
             label, active = label_for(pid, st)
             pr = pid in self.pressed or (pid == MOD and self.mouse_mod)
-            out[pid] = {"label": label, "active": active, "pressed": pr, "key": self.keys[pid]}
+            icon, cap = icon_for(pid, st)
+            out[pid] = {"label": label, "active": active, "pressed": pr, "key": self.keys[pid], "icon": icon, "caption": cap}
         out["_connected"] = self.live_ok
         last = getattr(self.assistant, "last", None)
         out["_last"] = f"Last: “{last['text']}”  ({last['source']})" if last else ""

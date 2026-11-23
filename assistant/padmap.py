@@ -23,6 +23,141 @@ BODY_RECT = (42, 60, 430, 262)
 DIAL = (78, 104, 52)  # cx, cy, outer radius (the dial overhangs the body's top-left corner)
 W0, H0 = 500.0, 282.0
 
+# ---- icons: simple line glyphs drawn on the canvas (scalable, one consistent style) -------------
+import math as _m
+
+
+def _arrowhead(c, x, y, dx, dy, size, col):
+    n = _m.hypot(dx, dy) or 1
+    dx, dy = dx / n, dy / n
+    px, py = -dy, dx
+    c.create_polygon(x + dx * size, y + dy * size, x - dx * size * .2 + px * size * .75, y - dy * size * .2 + py * size * .75,
+                     x - dx * size * .2 - px * size * .75, y - dy * size * .2 - py * size * .75, fill=col, outline=col)
+
+
+def _arc_arrow(c, cx, cy, a, b, start, extent, col, lw, head=1):
+    c.create_arc(cx - a, cy - b, cx + a, cy + b, start=start, extent=extent, style="arc", outline=col, width=lw)
+    th = _m.radians(start + extent)
+    d = 1 if extent > 0 else -1
+    pt = lambda t: (cx + a * _m.cos(t), cy - b * _m.sin(t))
+    x, y = pt(th)
+    x2, y2 = pt(th + d * 0.05)
+    _arrowhead(c, x, y, x2 - x, y2 - y, lw * 2.6, col)
+
+
+def _icon(c, name, cx, cy, r, col, lw):
+    L = lambda *pts, **kw: c.create_line(*pts, fill=col, width=lw, capstyle="round", joinstyle="round", **kw)
+    poly = lambda *pts, fill=None: c.create_polygon(*pts, fill=fill or "", outline=col, width=lw, joinstyle="round")
+    box = lambda x0, y0, x1, y1, fill=None: c.create_rectangle(cx + x0 * r, cy + y0 * r, cx + x1 * r, cy + y1 * r,
+                                                              outline=col, fill=fill or "", width=lw)
+    if name == "mic":
+        c.create_oval(cx - .3 * r, cy - .85 * r, cx + .3 * r, cy + .15 * r, outline=col, width=lw)
+        c.create_arc(cx - .6 * r, cy - .55 * r, cx + .6 * r, cy + .5 * r, start=180, extent=180, style="arc", outline=col, width=lw)
+        L(cx, cy + .5 * r, cx, cy + .85 * r)
+        L(cx - .3 * r, cy + .85 * r, cx + .3 * r, cy + .85 * r)
+    elif name == "tap":
+        c.create_oval(cx - .2 * r, cy - .2 * r, cx + .2 * r, cy + .2 * r, fill=col, outline=col)
+        c.create_oval(cx - .55 * r, cy - .55 * r, cx + .55 * r, cy + .55 * r, outline=col, width=lw)
+        c.create_oval(cx - .9 * r, cy - .9 * r, cx + .9 * r, cy + .9 * r, outline=col, width=lw)
+    elif name in ("metronome", "h_tempo"):
+        poly(cx - .55 * r, cy + .85 * r, cx + .55 * r, cy + .85 * r, cx + .25 * r, cy - .85 * r, cx - .25 * r, cy - .85 * r)
+        L(cx, cy + .55 * r, cx + .3 * r, cy - .55 * r)
+        c.create_oval(cx + .15 * r, cy - .3 * r, cx + .4 * r, cy - .05 * r, fill=col, outline=col)
+    elif name == "mod":
+        poly(cx, cy - .85 * r, cx + .75 * r, cy, cx + .32 * r, cy, cx + .32 * r, cy + .75 * r,
+             cx - .32 * r, cy + .75 * r, cx - .32 * r, cy, cx - .75 * r, cy)
+    elif name == "rec":
+        c.create_oval(cx - .65 * r, cy - .65 * r, cx + .65 * r, cy + .65 * r, fill=RED, outline=RED)
+    elif name == "stop":
+        box(-.6, -.6, .6, .6, fill=col)
+    elif name == "rec_session":
+        c.create_oval(cx - .75 * r, cy - .75 * r, cx + .75 * r, cy + .75 * r, outline=RED, width=lw * 1.4)
+        c.create_oval(cx - .3 * r, cy - .3 * r, cx + .3 * r, cy + .3 * r, fill=RED, outline=RED)
+    elif name == "mute":
+        poly(cx - .85 * r, cy - .28 * r, cx - .45 * r, cy - .28 * r, cx, cy - .7 * r, cx, cy + .7 * r, cx - .45 * r, cy + .28 * r, cx - .85 * r, cy + .28 * r)
+        L(cx + .25 * r, cy - .35 * r, cx + .85 * r, cy + .35 * r)
+        L(cx + .25 * r, cy + .35 * r, cx + .85 * r, cy - .35 * r)
+    elif name == "solo":
+        c.create_arc(cx - .72 * r, cy - .8 * r, cx + .72 * r, cy + .6 * r, start=0, extent=180, style="arc", outline=col, width=lw)
+        box(-.85, -.05, -.45, .65, fill=col)
+        box(.45, -.05, .85, .65, fill=col)
+    elif name in ("loop",):
+        _arc_arrow(c, cx, cy, .85 * r, .55 * r, 40, 290, col, lw)
+    elif name == "punch":
+        L(cx - .55 * r, cy - .7 * r, cx - .85 * r, cy - .7 * r, cx - .85 * r, cy + .7 * r, cx - .55 * r, cy + .7 * r)
+        L(cx + .55 * r, cy - .7 * r, cx + .85 * r, cy - .7 * r, cx + .85 * r, cy + .7 * r, cx + .55 * r, cy + .7 * r)
+        c.create_oval(cx - .3 * r, cy - .3 * r, cx + .3 * r, cy + .3 * r, fill=RED, outline=RED)
+    elif name == "views":
+        for i in range(2):
+            for j in range(2):
+                box(-.9 + i * .42, -.45 + j * .5, -.58 + i * .42, -.1 + j * .5)
+        for j in range(3):
+            L(cx + .2 * r, cy - .45 * r + j * .45 * r, cx + .9 * r, cy - .45 * r + j * .45 * r)
+    elif name == "device":
+        box(-.85, -.6, .85, .6)
+        L(cx - .45 * r, cy - .6 * r, cx - .45 * r, cy + .6 * r)
+        c.create_oval(cx + .1 * r, cy - .25 * r, cx + .6 * r, cy + .25 * r, outline=col, width=lw)
+    elif name in ("prev", "next"):
+        d = -1 if name == "prev" else 1
+        L(cx - d * .85 * r, cy - .6 * r, cx - d * .85 * r, cy + .6 * r)
+        for k in (0, 1):
+            x = cx - d * .5 * r + d * k * .65 * r
+            poly(x + d * .6 * r, cy, x, cy - .55 * r, x, cy + .55 * r, fill=col)
+    elif name == "play":
+        poly(cx - .5 * r, cy - .75 * r, cx + .75 * r, cy, cx - .5 * r, cy + .75 * r, fill=col)
+    elif name == "continue":
+        L(cx - .75 * r, cy - .7 * r, cx - .75 * r, cy + .7 * r)
+        poly(cx - .35 * r, cy - .7 * r, cx + .8 * r, cy, cx - .35 * r, cy + .7 * r, fill=col)
+    elif name == "undo":
+        _arc_arrow(c, cx, cy + .1 * r, .7 * r, .6 * r, 110, 250, col, lw)
+    elif name == "redo":
+        _arc_arrow(c, cx, cy + .1 * r, .7 * r, .6 * r, 70, -250, col, lw)
+    elif name == "wrong":
+        c.create_oval(cx - .8 * r, cy - .8 * r, cx + .8 * r, cy + .8 * r, outline=col, width=lw)
+        L(cx - .35 * r, cy - .35 * r, cx + .35 * r, cy + .35 * r)
+        L(cx - .35 * r, cy + .35 * r, cx + .35 * r, cy - .35 * r)
+    elif name == "spark":  # generic spark, drawn here (not any brand mark)
+        for k in range(8):
+            t = _m.radians(k * 45 + 10)
+            ln = .85 if k % 2 == 0 else .6
+            c.create_line(cx + .12 * r * _m.cos(t), cy - .12 * r * _m.sin(t), cx + ln * r * _m.cos(t), cy - ln * r * _m.sin(t),
+                          fill=AMBER, width=lw * 1.6, capstyle="round")
+    elif name in ("scroll_h", "scroll_v"):
+        if name == "scroll_h":
+            L(cx - .85 * r, cy, cx + .85 * r, cy)
+            _arrowhead(c, cx + .9 * r, cy, 1, 0, lw * 2.6, col)
+            _arrowhead(c, cx - .9 * r, cy, -1, 0, lw * 2.6, col)
+        else:
+            L(cx, cy - .85 * r, cx, cy + .85 * r)
+            _arrowhead(c, cx, cy - .9 * r, 0, -1, lw * 2.6, col)
+            _arrowhead(c, cx, cy + .9 * r, 0, 1, lw * 2.6, col)
+    elif name == "h_playhead":
+        L(cx, cy - .5 * r, cx, cy + .85 * r)
+        poly(cx - .45 * r, cy - .85 * r, cx + .45 * r, cy - .85 * r, cx, cy - .35 * r, fill=col)
+    elif name == "h_track":
+        for j, y in enumerate((-.6, -.1, .4)):
+            box(-.85, y, .85, y + .35, fill=col if j == 1 else None)
+    elif name == "h_volume":
+        L(cx, cy - .85 * r, cx, cy + .85 * r)
+        box(-.45, -.15, .45, .35, fill=col)
+    elif name == "h_pan":
+        c.create_oval(cx - .6 * r, cy - .6 * r, cx + .6 * r, cy + .6 * r, outline=col, width=lw)
+        L(cx, cy, cx + .3 * r, cy - .45 * r)
+        L(cx - .85 * r, cy + .8 * r, cx - .85 * r, cy + .45 * r)
+        L(cx + .85 * r, cy + .8 * r, cx + .85 * r, cy + .45 * r)
+    elif name in ("h_loop_move", "h_loop_start", "h_loop_end"):
+        lb = lambda x, d: L(cx + (x + d * .3) * r, cy - .65 * r, cx + x * r, cy - .65 * r, cx + x * r, cy + .1 * r, cx + (x + d * .3) * r, cy + .1 * r)
+        if name != "h_loop_end":
+            lb(-.85, 1)
+        if name != "h_loop_start":
+            lb(.85, -1)
+        L(cx - .6 * r, cy + .6 * r, cx + .6 * r, cy + .6 * r)
+        _arrowhead(c, cx + .65 * r, cy + .6 * r, 1, 0, lw * 2.6, col)
+        _arrowhead(c, cx - .65 * r, cy + .6 * r, -1, 0, lw * 2.6, col)
+    else:
+        return False
+    return True
+
 
 class PadMap:
     def __init__(self, pad, cfg):
@@ -237,11 +372,20 @@ class PadMap:
         rb = r * 0.5
         dp = snap["dial_press"]
         ell(rb, fill=KEYON if dp["active"] else ("#2a3440" if dp["pressed"] else "#0d1014"), outline="#3a424d", width=ow)
-        self._ftext(X(cx), Y(cy), dp["label"], 2 * rb * sx * 0.85, 2 * rb * sy * 0.5, FG)
+        ir = min(rb * sx, rb * sy) * 0.8
+        if not (dp.get("icon") and _icon(c, dp["icon"], X(cx), Y(cy), ir, FG, max(2, ir * 0.1))):
+            self._ftext(X(cx), Y(cy), dp["label"], 2 * rb * sx * 0.85, 2 * rb * sy * 0.5, FG)
         ccw, cw = snap["dial_ccw"], snap["dial_cw"]
-        lw, lh = (cx + r - x0 + 40) * sx, 20 * sy
-        self._ftext(X(x0 + 8 + (lw / sx) / 2), Y(cy + r + 14), "\u21ba " + ccw["label"], lw, lh, KEYDN if ccw["pressed"] else FG)
-        self._ftext(X(x0 + 8 + (lw / sx) / 2), Y(cy + r + 38), "\u21bb " + cw["label"], lw, lh, KEYDN if cw["pressed"] else FG)
+        lw_u = cx + r - x0 + 40
+        mx = X(x0 + 8 + lw_u / 2)
+        ir = min(lw_u * sx * 0.3, 36 * sy)
+        dcol = KEYDN if (cw["pressed"] or ccw["pressed"]) else FG
+        cap = cw.get("caption", "")
+        iy = Y(cy + r + (30 if cap else 46))
+        if not (cw.get("icon") and _icon(c, cw["icon"], mx, iy, ir, dcol, max(2, ir * 0.1))):
+            self._ftext(mx, iy, "Scroll", lw_u * sx, 26 * sy, dcol)
+        if cap:
+            self._ftext(mx, Y(cy + r + 78), cap, lw_u * sx, 24 * sy, dcol)
         for pid, (a0, b0, a1, b1) in KEYS.items():
             k = snap[pid]
             fill = KEYDN if k["pressed"] else (KEYON if k["active"] else KEYC)
@@ -249,7 +393,9 @@ class PadMap:
             kw, kh = (a1 - a0) * sx, (b1 - b0) * sy
             self.canvas.create_text(X(a0) + 6, Y(b0) + 4, text=pid.replace("b", "K"), fill=MUTED, anchor="nw",
                                     font=("Segoe UI", -self._fit("K10", kw * 0.3, kh * 0.18), "bold"))
-            self._ftext(X((a0 + a1) / 2), Y((b0 + b1) / 2) + kh * 0.06, k["label"], kw * 0.9, kh * 0.62, FG)
+            ir = min(kw, kh) * 0.34
+            if not (k.get("icon") and _icon(c, k["icon"], X((a0 + a1) / 2), Y((b0 + b1) / 2) + kh * 0.05, ir, FG, max(2, ir * 0.11))):
+                self._ftext(X((a0 + a1) / 2), Y((b0 + b1) / 2) + kh * 0.06, k["label"], kw * 0.9, kh * 0.62, FG)
         if snap.get("_last"):
             self._ftext(w / 2 - 12, h - 22, snap["_last"], w - 70, 26, MUTED)
         ok = snap["_connected"]  # connection to Live: green check / red cross

@@ -467,6 +467,16 @@ class PadTests(unittest.TestCase):
         self.assertTrue(pc.hid_active())
 
 
+    def test_icons(self):
+        pad = self._pad_mod()
+        self.assertEqual(pad.icon_for("b9", {"playing": True})[0], "stop")
+        self.assertEqual(pad.icon_for("b5", {"vmod": True})[0], "solo")
+        self.assertEqual(pad.icon_for("dial_cw", {"vmod": True})[0], "scroll_v")
+        self.assertEqual(pad.icon_for("dial_ccw", {"hold": "b2"}), ("scroll_h", "\u00b11 BPM"))
+        self.assertEqual(pad.icon_for("b2", {"hold": "b2"})[0], "h_tempo")
+        for pid in list(pad.KEYS if hasattr(pad, "KEYS") else []):
+            pass
+
     def test_hold_labels_and_adjust(self):
         pad = self._pad_mod()
         self.assertEqual(pad.label_for("dial_cw", {})[0], "Scroll right")
