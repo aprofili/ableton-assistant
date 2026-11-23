@@ -138,23 +138,63 @@ class Assistant:
             self.overlay.hide()
             self.set_state("idle")
 
+    _to_claude = False
+
+    def claude_dictate_toggle(self):
+        """Dial press: first press starts recording, second stops and types the transcript into the Claude app."""
+        if self._recording and not self._to_claude:
+            return  # normal voice command in progress
+        if not self._recording:
+            self._to_claude = True
+            self._on_start()
+            if not self._recording:
+                self._to_claude = False
+        else:
+            self._on_stop()
+
+    def _send_to_claude(self, text):
+        from .keys import find_window_by_exe, focus_window, release_held_modifiers
+        from pynput.keyboard import Controller, Key
+        pc = self.cfg.get("pad", {})
+        hwnd = find_window_by_exe(pc.get("claude_exe", "claude.exe"))
+        if not hwnd:
+            self.notify("Claude app window not found", "error")
+            beep(self.cfg, "fail")
+            return False
+        release_held_modifiers()
+        focus_window(hwnd)
+        time.sleep(0.3)
+        kb = Controller()
+        kb.type(text)
+        if pc.get("claude_submit", True):
+            time.sleep(0.15)
+            kb.press(Key.enter)
+            kb.release(Key.enter)
+        self.notify(f"→ Claude: “{text}”")
+        beep(self.cfg, "ok")
+        return True
+
     def _on_stop(self):
         if not self._recording:
             return
         self._recording = False
+        to_claude, self._to_claude = self._to_claude, False
         audio = self.rec.stop()
         self.overlay.hide()
         self.set_state("working")
-        threading.Thread(target=self._process, args=(audio,), daemon=True).start()
+        threading.Thread(target=self._process, args=(audio, to_claude), daemon=True).start()
 
-    def _process(self, audio):
+    def _process(self, audio, to_claude=False):
         text = ""
         with self.busy:
             try:
                 t0 = time.time()
                 text = self.stt.transcribe(audio)
-                log.info("heard %r (%.2fs)", text, time.time() - t0)
+                log.info("heard %r (%.2fs)%s", text, time.time() - t0, " [to Claude]" if to_claude else "")
                 if not text:
+                    return
+                if to_claude:
+                    self._send_to_claude(text)
                     return
                 ok = handle_text(text, self.cfg, self.actions, self.shortcuts,
                                  notify=lambda m: self.notify(m), on_event=self._on_event)

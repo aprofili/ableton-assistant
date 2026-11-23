@@ -28,6 +28,61 @@ def find_ableton_hwnd():
     return found[0] if found else None
 
 
+def find_window_by_exe(exe_name):
+    """Largest visible top-level window owned by a process whose image name is exe_name (case-insensitive)."""
+    if sys.platform != "win32":
+        return None
+    import ctypes
+    import os
+    from ctypes import wintypes
+
+    u, k = ctypes.windll.user32, ctypes.windll.kernel32
+    best = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def cb(hwnd, _):
+        if u.IsWindowVisible(hwnd) and u.GetWindowTextLengthW(hwnd):
+            pid = wintypes.DWORD()
+            u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            h = k.OpenProcess(0x1000, False, pid.value)  # PROCESS_QUERY_LIMITED_INFORMATION
+            if h:
+                buf = ctypes.create_unicode_buffer(520)
+                n = wintypes.DWORD(520)
+                k.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(n))
+                k.CloseHandle(h)
+                if os.path.basename(buf.value).lower() == exe_name.lower():
+                    r = wintypes.RECT()
+                    u.GetWindowRect(hwnd, ctypes.byref(r))
+                    best.append(((r.right - r.left) * (r.bottom - r.top), hwnd))
+        return True
+
+    u.EnumWindows(cb, 0)
+    return max(best)[1] if best else None
+
+
+def focus_window(hwnd):
+    """Bring any window to the front."""
+    if sys.platform != "win32" or not hwnd:
+        return False
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, 9)
+    fg = user32.GetForegroundWindow()
+    if fg != hwnd:
+        me = ctypes.windll.kernel32.GetCurrentThreadId()
+        their = user32.GetWindowThreadProcessId(fg, None) if fg else 0
+        if their and their != me:
+            user32.AttachThreadInput(me, their, True)
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
+        if their and their != me:
+            user32.AttachThreadInput(me, their, False)
+    time.sleep(0.15)
+    return user32.GetForegroundWindow() == hwnd
+
+
 def release_held_modifiers():
     """Lift Ctrl/Alt/Shift that are physically/driver held (the pad sends Ctrl+Alt+Shift+Fn), so keys
     and wheel events we inject are not read as modified."""

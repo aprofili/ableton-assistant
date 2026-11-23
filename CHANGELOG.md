@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.0
+- Driverless pad: the assistant sends the XPPen raw-mode init packet itself (child process, timeout) and re-sends it on reconnect / when the pad is seen in keyboard mode.
+- Dial press (or click on the map's dial centre) = talk to Claude: press to record, press again to stop; the transcript is typed into the Claude desktop app and submitted. Config: `pad.claude_exe` (default claude.exe), `pad.claude_submit` (default true).
+
 ## 1.6.0
 - Pad is read directly from its raw HID reports (no driver key mappings needed): K1-K10, dial press, dial ticks. Driver key combos are ignored while HID reports arrive and used as fallback otherwise.
 - Pad map is clickable (MOD toggles on click).
