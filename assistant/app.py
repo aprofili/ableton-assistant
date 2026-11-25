@@ -29,6 +29,33 @@ def setup_logging():
     log.propagate = False
 
 
+_TONES = {}
+
+
+def _tone_wav(freq, ms, rate=44100):
+    """In-memory mono 16-bit WAV of a sine tone with short fades (cached)."""
+    key = (freq, ms)
+    if key not in _TONES:
+        import io
+        import math
+        import struct
+        import wave
+        n = int(rate * ms / 1000)
+        fade = max(1, int(rate * 0.005))
+        frames = bytearray()
+        for i in range(n):
+            env = min(1.0, i / fade, (n - i) / fade)
+            frames += struct.pack("<h", int(9000 * env * math.sin(2 * math.pi * freq * i / rate)))
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(rate)
+            w.writeframes(bytes(frames))
+        _TONES[key] = buf.getvalue()
+    return _TONES[key]
+
+
 def beep(cfg, kind):
     if not cfg.get("beeps"):
         return
@@ -37,7 +64,9 @@ def beep(cfg, kind):
     def _b():
         try:
             import winsound
-            winsound.Beep(*tones)
+            # PlaySound goes through the default Windows playback device;
+            # winsound.Beep uses the legacy beep device instead.
+            winsound.PlaySound(_tone_wav(*tones), winsound.SND_MEMORY)
         except Exception:
             pass
 
