@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.9
+- If data/enable_autostart exists at startup, "Start with Windows" is turned on and the file is removed.
+
 ## 1.10.8
 - Microphone menu rescans audio hardware each time it opens, so newly plugged mics appear; the saved mic is re-resolved by name on every recording, and an unplugged mic falls back to the system default.
 

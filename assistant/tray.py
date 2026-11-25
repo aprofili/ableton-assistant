@@ -242,6 +242,14 @@ class TrayApp:
 def run_tray(cfg):
     from .overlay import set_dpi_aware
     set_dpi_aware()
+    marker = os.path.join(cfgmod.ROOT, "data", "enable_autostart")  # drop this file to turn on "Start with Windows" remotely
+    if os.path.exists(marker):
+        try:
+            set_autostart(True)
+            os.remove(marker)
+            log.info("Start with Windows enabled")
+        except Exception:
+            log.exception("Could not enable autostart")
     try:
         TrayApp(cfg).run()
     except Exception:
