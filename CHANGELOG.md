@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.13
+- MOD+K4 now arms/disarms the selected track (replaces Session Record on the pad; Session Record is still available by voice).
+
 ## 1.10.12
 - Beeps play through the default Windows playback device (in-memory WAV via PlaySound) instead of the legacy beep device.
 

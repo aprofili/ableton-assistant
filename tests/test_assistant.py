@@ -301,7 +301,7 @@ class PadTests(unittest.TestCase):
             act.run(pad.MOD_ACTIONS["b9"])     # stopped + MOD -> continue
             live.props["is_playing"] = 1
             act.run(pad.ACTIONS["b9"])         # playing -> stop
-            act.run(pad.MOD_ACTIONS["b4"])     # session record on
+            act.run([{"type": "session_record", "on": "toggle"}])  # session record on
             for _ in range(4):                 # punch cycle
                 act.run(pad.MOD_ACTIONS["b6"])
             act.run(pad.MOD_ACTIONS["b10"])    # MOD+K10 = redo

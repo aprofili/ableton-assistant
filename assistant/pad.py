@@ -48,7 +48,7 @@ ACTIONS = {
 # with MOD held
 MOD_ACTIONS = {
     "b2": [{"type": "tap_tempo"}],
-    "b4": [{"type": "session_record", "on": "toggle"}],
+    "b4": [{"type": "arm_track", "on": "toggle"}],
     "b5": [{"type": "track_toggle", "prop": "mute"}],
     "b6": [{"type": "punch_cycle"}],
     "b7": [{"type": "key", "keys": "shift+tab"}],  # Live: toggle Clip / Device detail view
@@ -149,7 +149,7 @@ def label_for(pid, st):
         return "MOD", mod
     if pid == "b4":
         if mod:
-            return ("Stop session\nrecord" if st.get("session_record") else "Session\nrecord"), bool(st.get("session_record"))
+            return "Arm / disarm\ntrack", False
         return ("Stop\nrecording" if st.get("record") else "Record"), bool(st.get("record"))
     if pid == "b5":
         return ("Mute\ntrack" if mod else "Solo\ntrack"), False
