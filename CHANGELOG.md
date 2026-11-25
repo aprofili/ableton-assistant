@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.10
+- scripts/startup/*.ps1 run hidden once at startup. Added mapdrive.ps1: waits for Tailscale, then re-maps the network share on 100.66.214.64 as D: (log: scripts/startup/mapdrive.log).
+
 ## 1.10.9
 - If data/enable_autostart exists at startup, "Start with Windows" is turned on and the file is removed.
 
