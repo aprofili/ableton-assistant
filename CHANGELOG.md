@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.12
+- Beeps play through the default Windows playback device (in-memory WAV via PlaySound) instead of the legacy beep device.
+
 ## 1.10.11
 - scripts/startup/rodecaster.ps1 opens the RODECaster App at startup.
 
