@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.11
+- scripts/startup/rodecaster.ps1 opens the RODECaster App at startup.
+
 ## 1.10.10
 - scripts/startup/*.ps1 run hidden once at startup. Added mapdrive.ps1: waits for Tailscale, then re-maps the network share on 100.66.214.64 as D: (log: scripts/startup/mapdrive.log).
 
