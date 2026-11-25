@@ -339,7 +339,11 @@ class Actions:
     def a_arm_track(self, a):
         """Arm (or disarm) the selected track for recording."""
         ti = int(self.osc.query("/live/view/get/selected_track", timeout=0.5)[-1])
-        self.osc.send("/live/track/set/arm", ti, 1 if a.get("on", True) else 0)
+        on = a.get("on", True)
+        if on == "toggle":
+            on = not int(self.osc.query("/live/track/get/arm", ti, timeout=0.5)[-1])
+        self.osc.send("/live/track/set/arm", ti, 1 if on else 0)
+        self.note = "Track armed" if on else "Track disarmed"
 
     def a_track_toggle(self, a):
         """Toggle mute or solo on the selected track; remembers a one-line note for the pad popup."""
