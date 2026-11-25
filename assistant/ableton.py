@@ -435,7 +435,14 @@ class Actions:
         idx = int(self.osc.query("/live/song/get/num_tracks")[0]) - 1
         if a.get("name"):
             self.osc.send("/live/track/set/name", idx, str(a["name"]))
+        for i in range(idx):  # arm exclusively: disarm every other track
+            try:
+                if int(self.osc.query("/live/track/get/arm", i, timeout=0.5)[-1]):
+                    self.osc.send("/live/track/set/arm", i, 0)
+            except Exception:
+                pass
         self.osc.send("/live/track/set/arm", idx, 1)
+        self.osc.send("/live/track/set/current_monitoring_state", idx, 1)  # Auto
         self.osc.send("/live/view/set/selected_track", idx)
         rc = self.cfg.get("rode") or {}
         types = [str(t) for t in self.osc.query("/live/track/get/available_input_routing_types", idx)[1:]]
@@ -462,7 +469,7 @@ class Actions:
         """New armed audio track named "Guitar" with the Favorites preset "Guitar Rig" loaded on it."""
         if self.keys is None:
             raise RuntimeError("Key sending is not available")
-        self.a_new_input_track({"name": "Guitar"})  # also selects the new track
+        self.a_new_input_track({"name": "Guitar", "channel": (self.cfg.get("rode") or {}).get("guitar_channel", 7)})  # also selects the new track
         time.sleep(0.4)
         self.keys.press("ctrl+f")   # focus Live's browser search (it filters Favorites if that is selected)
         time.sleep(0.3)
