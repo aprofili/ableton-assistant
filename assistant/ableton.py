@@ -466,7 +466,7 @@ class Actions:
         time.sleep(0.4)
         self.keys.press("ctrl+f")   # focus Live's browser search (it filters Favorites if that is selected)
         time.sleep(0.3)
-        self.keys.type_text("Guitar Rig")
+        self.keys.type_text("Guitar Rig.adg")
         time.sleep(0.7)
         self.keys.press("down")     # first result: Favorites > Guitar Rig.adg
         time.sleep(0.15)

@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.10.15
+- "new guitar track": search for "Guitar Rig.adg" so the Favorites preset loads instead of the Guitar Rig 7 plugin.
+
 ## 1.10.14
 - Voice: "new guitar track" creates an armed audio track named Guitar and loads the Favorites preset "Guitar Rig" on it (via the Live browser search; keep Favorites selected in the browser).
 ## 1.10.13
