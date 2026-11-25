@@ -239,6 +239,19 @@ class TrayApp:
         self.icon.run(setup=lambda icon: (setattr(icon, "visible", True), self.asst.start()))
 
 
+def _run_startup_scripts():
+    """Run every scripts/startup/*.ps1 once, hidden, when the assistant starts (e.g. re-mapping a network drive)."""
+    import glob
+    import subprocess
+    for f in sorted(glob.glob(os.path.join(cfgmod.ROOT, "scripts", "startup", "*.ps1"))):
+        try:
+            subprocess.Popen(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", f],
+                             creationflags=0x08000000)  # CREATE_NO_WINDOW
+            log.info("Started startup script %s", os.path.basename(f))
+        except Exception:
+            log.exception("Startup script failed: %s", f)
+
+
 def run_tray(cfg):
     from .overlay import set_dpi_aware
     set_dpi_aware()
@@ -250,6 +263,7 @@ def run_tray(cfg):
             log.info("Start with Windows enabled")
         except Exception:
             log.exception("Could not enable autostart")
+    _run_startup_scripts()
     try:
         TrayApp(cfg).run()
     except Exception:
