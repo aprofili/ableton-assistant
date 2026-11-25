@@ -76,6 +76,8 @@ def _match_audio(seg):
             track = "selected"
         db = float(m.group(3)) if m.group(3) else 2.0
         return [{"type": "track_volume", "track": track, "db": db if up else -db}]
+    if re.fullmatch(r"(?:(?:create|make|add|give me|set up|insert)\s+)?(?:a |an |the )?(?:new )?guitar (?:track|channel)(?: please)?", seg):
+        return [{"type": "new_guitar_track"}]
     if re.search(r"\b(?:create|make|add|new|set up)\b", seg) and re.search(r"\btrack\b", seg) and \
             (re.search(r"\baudio\b|\brode ?caster\b|\brode\b", seg) or re.search(r"\b(?:mic|channel|input)\s*\d+", seg)):
         ch = re.search(r"\b(?:mic|channel|input|ch)\s*(\d+)", seg)
