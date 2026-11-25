@@ -46,6 +46,8 @@ def describe_action(a):
         return f"{a.get('track', 'selected')} {a['db']:+g} dB"
     if t == "check_levels":
         return "Check levels"
+    if t == "new_guitar_track":
+        return "New Guitar track + Guitar Rig preset"
     if t == "new_input_track":
         return "New armed track" + (f" “{a['name']}”" if a.get("name") else "") + (f" (input {a['channel']})" if a.get("channel") else "")
     if t == "key":

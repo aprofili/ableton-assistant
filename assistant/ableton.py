@@ -458,6 +458,21 @@ class Actions:
                              "Map it in config.json: rode.channels {\"%s\": \"<name>\"}" % ch)
         self.osc.send("/live/track/set/input_routing_channel", idx, pick)
 
+    def a_new_guitar_track(self, a):
+        """New armed audio track named "Guitar" with the Favorites preset "Guitar Rig" loaded on it."""
+        if self.keys is None:
+            raise RuntimeError("Key sending is not available")
+        self.a_new_input_track({"name": "Guitar"})  # also selects the new track
+        time.sleep(0.4)
+        self.keys.press("ctrl+f")   # focus Live's browser search (it filters Favorites if that is selected)
+        time.sleep(0.3)
+        self.keys.type_text("Guitar Rig")
+        time.sleep(0.7)
+        self.keys.press("down")     # first result: Favorites > Guitar Rig.adg
+        time.sleep(0.15)
+        self.keys.press("enter")    # loads it onto the selected (new) track
+        self.note = "Guitar track ready"
+
     def a_osc(self, a):
         self.osc.send(a["address"], *a.get("args", []))
 

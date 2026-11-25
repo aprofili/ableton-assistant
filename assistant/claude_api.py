@@ -21,6 +21,7 @@ Action types:
   check_levels{seconds}  watch meters while playing and report clipping (shown on screen)
   arm_track{on: bool}  arm/disarm the selected track for recording
   new_input_track{name, channel}  new armed audio track whose input is external channel N (RØDECaster inputs)
+  new_guitar_track{}  new armed audio track named "Guitar" with the user's Favorites preset "Guitar Rig" loaded
   key{keys, learn_phrases}  one Ableton keyboard shortcut, e.g. "ctrl+shift+t", "f9", "tab"
   osc{address,args}  raw AbletonOSC call if nothing above fits (e.g. /live/song/cue_point/add_or_delete,
                      /live/song/cue_point/set/name [index, name])
@@ -58,7 +59,7 @@ TOOL = {
                         "type": {"type": "string", "enum": [
                             "set_loop", "loop", "metronome", "play", "continue", "stop", "undo", "redo",
                             "goto_bar", "goto_cue", "arm_track", "next_cue", "prev_cue", "set_count_in", "set_tempo",
-                            "add_section", "name_section", "track_volume", "check_levels", "new_input_track",
+                            "add_section", "name_section", "track_volume", "check_levels", "new_input_track", "new_guitar_track",
                             "key", "osc", "wait"]},
                         "start_bar": {"type": "number"}, "end_bar": {"type": "number"},
                         "bar": {"type": "number"}, "name": {"type": "string"},

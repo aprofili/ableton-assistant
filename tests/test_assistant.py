@@ -260,6 +260,14 @@ class LearnTests(unittest.TestCase):
             shutil.rmtree(tmp)
 
 
+class GuitarTrackRouteTests(unittest.TestCase):
+    def test_new_guitar_track_phrases(self):
+        from assistant import router
+        for t in ("new guitar track", "make a new guitar track", "give me a new guitar track"):
+            acts, _ = router.route(t, None)
+            self.assertEqual(acts, [{"type": "new_guitar_track"}])
+
+
 class PadTests(unittest.TestCase):
     def _pad_mod(self):
         import sys

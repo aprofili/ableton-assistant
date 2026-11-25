@@ -173,3 +173,8 @@ class KeySender:
         self.kb.release(key)
         for m in reversed(mods):
             self.kb.release(m)
+
+    def type_text(self, text):
+        release_held_modifiers()
+        focus_ableton()
+        self.kb.type(text)
