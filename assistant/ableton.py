@@ -663,7 +663,7 @@ class Actions:
         self.note = "Guitar track ready"
 
     def a_new_vocal_track(self, a):
-        """New armed audio track "Vocal", Ext. In 3, Favorites rack "Vocal Base" up front. Monitoring Off unless
+        """New armed audio track "Vocal", Ext. In 3, Favorites rack "Vocal Base 2" up front. Monitoring Off unless
         a["monitor"] (spoken "with record monitoring on" = Auto)."""
         if self.keys is None:
             raise RuntimeError("Key sending is not available")
