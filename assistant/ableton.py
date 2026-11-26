@@ -579,14 +579,16 @@ class Actions:
                              "Map it in config.json: rode.channels {\"%s\": \"<name>\"}" % ch)
         self.osc.send("/live/track/set/input_routing_channel", idx, pick)
 
-    def _load_device(self, query):
-        """Load the first browser result for `query` onto the selected track (appended to its chain)."""
+    def _load_device(self, query, downs=1):
+        """Load a browser search result onto the selected track (appended to its chain). `downs` = which result
+        (1 = first). Down presses need a pause between them or Live drops some."""
         self.keys.press("ctrl+f")
         time.sleep(0.3)
         self.keys.type_text(query)
-        time.sleep(0.7)
-        self.keys.press("down")
-        time.sleep(0.15)
+        time.sleep(0.8)
+        for _ in range(downs):
+            self.keys.press("down")
+            time.sleep(0.5)
         self.keys.press("enter")
         time.sleep(0.8)
 
@@ -649,7 +651,7 @@ class Actions:
             time.sleep(0.1)
         self._select_track(ti)
         for dev in list(first) + ["EQ Eight", "Utility"]:
-            self._load_device(dev)
+            self._load_device(*(dev if isinstance(dev, tuple) else (dev,)))
 
     def a_new_guitar_track(self, a):
         """New armed audio track "Guitar", Ext. In 7, monitoring Auto, Favorites preset "Guitar Rig" up front."""
@@ -668,7 +670,7 @@ class Actions:
         mon = 1 if a.get("monitor") else 2
         self.a_new_input_track({"name": "Vocal", "channel": 3, "monitor_state": mon})
         ti = self._sel_track()
-        self._build_chain(ti, ["Vocal Base.adg"])
+        self._build_chain(ti, [("Vocal Base.adg", 2)])  # 2nd hit: "Vocal Base 2.adg" sorts first
         self.note = "Vocal track ready" + (" (monitoring on)" if mon == 1 else "")
 
     def a_osc(self, a):

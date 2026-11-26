@@ -10,3 +10,6 @@ How: `a_new_input_track` (channel 3, monitor_state 2 or 1) then `_build_chain(ti
 devices (OSC delete_device), then browser-search load in order (ctrl+f, type, Down, Enter; each appends): the preset
 ("Vocal Base.adg" exact name: plain "Vocal Base" also matches "Vocal Base 2.adg"), EQ Eight, Utility. The guitar action uses
 the same chain builder so Guitar Rig is up front too.
+
+Gotcha: the search "Vocal Base.adg" returns "Vocal Base 2.adg" first and "Vocal Base.adg" second, so the loader presses Down twice
+(with 0.5 s pauses; quick presses get dropped). If the favorites change, recheck the order.
