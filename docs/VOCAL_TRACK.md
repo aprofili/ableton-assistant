@@ -12,3 +12,6 @@ devices (OSC delete_device), then browser-search load in order (ctrl+f, type, Do
 the same chain builder so Guitar Rig is up front too.
 
 Note: Adam corrected the preset to "Vocal Base 2" (not "Vocal Base"). Searching "Vocal Base 2.adg" returns it as the first hit.
+
+Browser state: all device loads assume Live's browser is on the "All" collection. With "User Library" selected, search results
+are a folder tree and the first Down lands on a folder, so the wrong item loads. Keep the browser on All.
