@@ -21,3 +21,6 @@ How it is done (Actions.a_double_track in assistant/ableton.py):
 
 Notes: Live's pan field range is 50L..50R, so -1/+1 is hard pan. Edit menu: Group Tracks (Ctrl+G), Duplicate (Ctrl+D).
 Needs Live in front; the action focuses it.
+
+Arming both L and R needs Live's Settings > Record, Warp & Launch > Exclusive: Arm OFF (it is off on Adam's PC);
+otherwise arming R disarms L. Exclusivity for new tracks is enforced by the code instead (it disarms all others).
