@@ -527,7 +527,7 @@ class Actions:
         self.osc.send("/live/track/set/name", ti + 2, "R")
         self.osc.send("/live/track/set/panning", ti + 1, -1.0)
         self.osc.send("/live/track/set/panning", ti + 2, 1.0)
-        self.osc.send("/live/track/set/volume", ti, round(0.85 * 0.75 ** 0.25, 4))  # group = 3/4 of unity gain (~ -2.5 dB); Live's fader: 0.85 = 0 dB, gain ~ (v/0.85)^4
+        self.osc.send("/live/track/set/volume", ti, 0.75)  # group fader 3/4 full (fader position 0.75; 0.85 = 0 dB)
         for i in range(self._num_tracks()):  # arm exclusively: only the new track (R)
             try:
                 want = 1 if i == ti + 2 else 0
