@@ -4,7 +4,9 @@ Voice: "new drum mic track", "make a drum mic track", "drum mics".
 
 Result: group **Drums** (fader 0.75) holding **L** (Ext. In channel 3, hard left) and **R** (Ext. In channel 5, hard right).
 Each of L and R has devices in this order: Compressor (defaults), EQ Eight, Utility (the standard new-track devices).
-The group has no devices. Only R (the newest track) is armed (rule: any new track arms only the new one); monitoring Auto.
+The group has no devices. L and R are both armed (mics record together; every other track is disarmed) and monitoring is Off on both
+(room mics would feed back). Guitar-type tracks arm only the new track with monitoring Auto; mic pairs arm both with monitoring Off.
+Exclusive Arm must stay off in Live (Settings > Record, Warp & Launch).
 
 How (Actions.a_new_drum_mic_track in assistant/ableton.py):
 1. `a_new_input_track({name L, channel 3})`: new audio track, exclusive arm, Ext. In 3, monitoring Auto, selected.
@@ -14,4 +16,4 @@ How (Actions.a_new_drum_mic_track in assistant/ableton.py):
    no keyboard way to move a device, so rebuild the chain in order.)
 3. Pan L -1. Group L alone (see DOUBLE_TRACK.md; Ctrl+G, fallback Alt+E G), then Ctrl+D inside the group -> R (identical
    devices, no clips).
-4. R input channel 5, names Drums/L/R, pans -1/+1, group volume 0.75, arm only R.
+4. R input channel 5, names Drums/L/R, pans -1/+1, group volume 0.75, arm L and R, monitoring Off (state 2) on both.

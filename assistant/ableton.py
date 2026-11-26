@@ -592,7 +592,7 @@ class Actions:
 
     def a_new_drum_mic_track(self, a):
         """Group "Drums" (fader 0.75) with L (Ext. In 3, hard left) and R (Ext. In 5, hard right); each has
-        Compressor, EQ Eight, Utility; only R is armed."""
+        Compressor, EQ Eight, Utility; L and R armed, monitoring Off."""
         if self.keys is None:
             raise RuntimeError("Key sending is not available")
         self.a_new_input_track({"name": "L", "channel": 3})
@@ -629,13 +629,14 @@ class Actions:
         self.osc.send("/live/track/set/panning", ti + 1, -1.0)
         self.osc.send("/live/track/set/panning", ti + 2, 1.0)
         self.osc.send("/live/track/set/volume", ti, 0.75)
-        for i in range(self._num_tracks()):  # arm only the new track (R)
+        for i in range(self._num_tracks()):  # arm only the new tracks (L and R: both mics record together)
             try:
                 if i in (ti, ti + 1, ti + 2) or int(self.osc.query("/live/track/get/arm", i, timeout=0.5)[-1]):
-                    self.osc.send("/live/track/set/arm", i, 1 if i == ti + 2 else 0)
+                    self.osc.send("/live/track/set/arm", i, 1 if i in (ti + 1, ti + 2) else 0)
             except Exception:
                 pass
-        self.osc.send("/live/track/set/current_monitoring_state", ti + 2, 1)
+        for i in (ti + 1, ti + 2):  # monitoring Off (room mics would feed back)
+            self.osc.send("/live/track/set/current_monitoring_state", i, 2)
         self._select_track(ti + 2)
         self.note = "Drums: L (in 3) / R (in 5)"
 
