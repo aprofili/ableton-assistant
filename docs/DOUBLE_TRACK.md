@@ -4,7 +4,8 @@ Voice: "double this", "double track", "double it", "I want to double this".
 
 Turns the selected track (name N) into a group named N holding two tracks:
 - **L** - the original (clips kept), hard left (pan -1).
-- **R** - a copy with the same devices/effects, all clips deleted, hard right (pan +1), disarmed.
+- **R** - a copy with the same devices/effects, all clips deleted, hard right (pan +1).
+- Both L and R are armed for recording (every other track is disarmed), like any new track.
 
 How it is done (Actions.a_double_track in assistant/ableton.py):
 1. Read the selected track index `ti` and its name (OSC).
@@ -15,7 +16,8 @@ How it is done (Actions.a_double_track in assistant/ableton.py):
 4. Clear clips on `ti+2`: session slots via `/live/clip_slot/delete_clip`; arrangement clips via Ctrl+A (time range
    over all content on all tracks), Down (collapses to one track), then Up/Down until `/live/view/get/selected_track`
    equals `ti+2`, then Delete. Never press Delete unless the selected track is `ti+2`.
-5. Names via `/live/track/set/name` (group=N, L, R); pans via `/live/track/set/panning` (-1 / +1; Live shows 50L/50R).
+5. Arm L and R, disarm everything else (`/live/track/set/arm`).
+6. Names via `/live/track/set/name` (group=N, L, R); pans via `/live/track/set/panning` (-1 / +1; Live shows 50L/50R).
 
 Notes: Live's pan field range is 50L..50R, so -1/+1 is hard pan. Edit menu: Group Tracks (Ctrl+G), Duplicate (Ctrl+D).
 Needs Live in front; the action focuses it.

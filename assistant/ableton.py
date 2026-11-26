@@ -527,7 +527,13 @@ class Actions:
         self.osc.send("/live/track/set/name", ti + 2, "R")
         self.osc.send("/live/track/set/panning", ti + 1, -1.0)
         self.osc.send("/live/track/set/panning", ti + 2, 1.0)
-        self.osc.send("/live/track/set/arm", ti + 2, 0)
+        for i in range(self._num_tracks()):  # arm exclusively: only L and R
+            try:
+                want = 1 if i in (ti + 1, ti + 2) else 0
+                if i in (ti, ti + 1, ti + 2) or int(self.osc.query("/live/track/get/arm", i, timeout=0.5)[-1]):
+                    self.osc.send("/live/track/set/arm", i, want)
+            except Exception:
+                pass
         self._select_track(ti + 1)
         self.note = f"Doubled {name}: L / R"
 
