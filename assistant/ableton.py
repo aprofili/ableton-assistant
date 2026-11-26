@@ -258,6 +258,11 @@ class Actions:
             raise ValueError("Count-in must be 0, 1, 2 or 4 bars")
         self.osc.send("/live/song/set/count_in_duration", value)
 
+    def a_time_signature(self, a):
+        self.osc.send("/live/song/set/signature_numerator", int(a["num"]))
+        self.osc.send("/live/song/set/signature_denominator", int(a["den"]))
+        self.note = f"Time signature {int(a['num'])}/{int(a['den'])}"
+
     def a_set_tempo(self, a):
         self.osc.send("/live/song/set/tempo", float(a["bpm"]))
 

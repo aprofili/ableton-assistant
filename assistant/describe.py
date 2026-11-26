@@ -36,6 +36,8 @@ def describe_action(a):
     if t == "set_count_in":
         n = a["bars"]
         return "Count-in off" if n == 0 else f"Count-in {n} bar{'s' if n != 1 else ''}"
+    if t == "time_signature":
+        return f"Time signature {a['num']}/{a['den']}"
     if t == "set_tempo":
         return f"Tempo {a['bpm']:g}"
     if t == "add_section":

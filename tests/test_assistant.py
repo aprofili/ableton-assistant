@@ -615,3 +615,10 @@ class MacroTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TimeSignatureRouteTests(unittest.TestCase):
+    def test_variants(self):
+        from assistant import router
+        for t in ["change the time signature to 74", "time signature seven four", "time signature 7/4"]:
+            self.assertEqual(router.route(t)[0], [{"type": "time_signature", "num": 7, "den": 4}], t)

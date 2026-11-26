@@ -141,6 +141,18 @@ def _match(seg):
         v = m.group(1)
         return [{"type": "set_count_in", "bars": 0 if v in ("none", "off") else int(v)}]
 
+    m = re.search(r"\b(?:time signature|signature|meter)\b\D*?(\d{1,2})\s*(?:over |by )?(\d{1,2})?\b", seg) or \
+        re.search(r"\b(\d{1,2}) ?(?:over |by )?(2|4|8|16)\s+time\b", seg)
+    if m:
+        a, b = m.group(1), m.group(2)
+        if b is None:  # one digit run, e.g. "74" -> 7/4, "128" -> 12/8
+            a, b = (a[0], a[1:]) if len(a) == 2 else (a, None)
+        if a and b and int(b) in (1, 2, 4, 8, 16) and 1 <= int(a) <= 99:
+            return [{"type": "time_signature", "num": int(a), "den": int(b)}]
+        m3 = re.fullmatch(r"(\d{1,2})(2|4|8|16)", (m.group(1) or "") + (m.group(2) or ""))
+        if m3:
+            return [{"type": "time_signature", "num": int(m3.group(1)), "den": int(m3.group(2))}]
+
     m = re.search(r"\btempo\b\D*?(\d{2,3}(?:\.\d+)?)", seg)
     if m:
         return [{"type": "set_tempo", "bpm": float(m.group(1))}]
