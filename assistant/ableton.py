@@ -501,7 +501,6 @@ class Actions:
         ti = self._sel_track()
         name = str(self.osc.query("/live/track/get/name", ti, timeout=0.5)[-1])
         n0 = self._num_tracks()
-        vol = float(self.osc.query("/live/track/get/volume", ti, timeout=0.5)[-1])
         # 1. group the original on its own: the group lands at ti, the track moves to ti+1
         self._click_lane()
         self._select_track(ti)
@@ -528,7 +527,7 @@ class Actions:
         self.osc.send("/live/track/set/name", ti + 2, "R")
         self.osc.send("/live/track/set/panning", ti + 1, -1.0)
         self.osc.send("/live/track/set/panning", ti + 2, 1.0)
-        self.osc.send("/live/track/set/volume", ti, round(vol * 0.75, 4))  # group at ~3/4 of the original level
+        self.osc.send("/live/track/set/volume", ti, round(0.85 * 0.75 ** 0.25, 4))  # group = 3/4 of unity gain (~ -2.5 dB); Live's fader: 0.85 = 0 dB, gain ~ (v/0.85)^4
         for i in range(self._num_tracks()):  # arm exclusively: only the new track (R)
             try:
                 want = 1 if i == ti + 2 else 0
