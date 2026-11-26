@@ -670,7 +670,7 @@ class Actions:
         mon = 1 if a.get("monitor") else 2
         self.a_new_input_track({"name": "Vocal", "channel": 3, "monitor_state": mon})
         ti = self._sel_track()
-        self._build_chain(ti, [("Vocal Base.adg", 2)])  # 2nd hit: "Vocal Base 2.adg" sorts first
+        self._build_chain(ti, ["Vocal Base 2.adg"])
         self.note = "Vocal track ready" + (" (monitoring on)" if mon == 1 else "")
 
     def a_osc(self, a):
