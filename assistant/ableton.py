@@ -552,7 +552,7 @@ class Actions:
             except Exception:
                 pass
         self.osc.send("/live/track/set/arm", idx, 1)
-        self.osc.send("/live/track/set/current_monitoring_state", idx, 1)  # Auto
+        self.osc.send("/live/track/set/current_monitoring_state", idx, int(a.get("monitor_state", 1)))  # 0 In, 1 Auto, 2 Off
         self.osc.send("/live/view/set/selected_track", idx)
         rc = self.cfg.get("rode") or {}
         types = [str(t) for t in self.osc.query("/live/track/get/available_input_routing_types", idx)[1:]]
@@ -595,7 +595,8 @@ class Actions:
         Compressor, EQ Eight, Utility; L and R armed, monitoring Off."""
         if self.keys is None:
             raise RuntimeError("Key sending is not available")
-        self.a_new_input_track({"name": "L", "channel": 3})
+        mon = 1 if a.get("monitor") else 2
+        self.a_new_input_track({"name": "L", "channel": 3, "monitor_state": mon})
         ti = self._sel_track()
         # device chain: Compressor first, then the standard new-track devices
         for d in range(int(self.osc.query("/live/track/get/num_devices", ti)[-1]) - 1, -1, -1):
@@ -635,25 +636,40 @@ class Actions:
                     self.osc.send("/live/track/set/arm", i, 1 if i in (ti + 1, ti + 2) else 0)
             except Exception:
                 pass
-        for i in (ti + 1, ti + 2):  # monitoring Off (room mics would feed back)
-            self.osc.send("/live/track/set/current_monitoring_state", i, 2)
+        for i in (ti + 1, ti + 2):  # monitoring Off by default (room mics feed back); Auto if "monitoring on"
+            self.osc.send("/live/track/set/current_monitoring_state", i, mon)
         self._select_track(ti + 2)
         self.note = "Drums: L (in 3) / R (in 5)"
 
+    def _build_chain(self, ti, first):
+        """Replace the template devices on track ti with `first` (browser search names, in order), then the
+        standard new-track devices EQ Eight and Utility, so `first` sits up front."""
+        for d in range(int(self.osc.query("/live/track/get/num_devices", ti)[-1]) - 1, -1, -1):
+            self.osc.send("/live/track/delete_device", ti, d)
+            time.sleep(0.1)
+        self._select_track(ti)
+        for dev in list(first) + ["EQ Eight", "Utility"]:
+            self._load_device(dev)
+
     def a_new_guitar_track(self, a):
-        """New armed audio track named "Guitar" with the Favorites preset "Guitar Rig" loaded on it."""
+        """New armed audio track "Guitar", Ext. In 7, monitoring Auto, Favorites preset "Guitar Rig" up front."""
         if self.keys is None:
             raise RuntimeError("Key sending is not available")
-        self.a_new_input_track({"name": "Guitar", "channel": (self.cfg.get("rode") or {}).get("guitar_channel", 7)})  # also selects the new track
-        time.sleep(0.4)
-        self.keys.press("ctrl+f")   # focus Live's browser search (it filters Favorites if that is selected)
-        time.sleep(0.3)
-        self.keys.type_text("Guitar Rig.adg")
-        time.sleep(0.7)
-        self.keys.press("down")     # first result: Favorites > Guitar Rig.adg
-        time.sleep(0.15)
-        self.keys.press("enter")    # loads it onto the selected (new) track
+        self.a_new_input_track({"name": "Guitar", "channel": (self.cfg.get("rode") or {}).get("guitar_channel", 7)})
+        ti = self._sel_track()
+        self._build_chain(ti, ["Guitar Rig.adg"])
         self.note = "Guitar track ready"
+
+    def a_new_vocal_track(self, a):
+        """New armed audio track "Vocal", Ext. In 3, Favorites rack "Vocal Base" up front. Monitoring Off unless
+        a["monitor"] (spoken "with record monitoring on" = Auto)."""
+        if self.keys is None:
+            raise RuntimeError("Key sending is not available")
+        mon = 1 if a.get("monitor") else 2
+        self.a_new_input_track({"name": "Vocal", "channel": 3, "monitor_state": mon})
+        ti = self._sel_track()
+        self._build_chain(ti, ["Vocal Base.adg"])
+        self.note = "Vocal track ready" + (" (monitoring on)" if mon == 1 else "")
 
     def a_osc(self, a):
         self.osc.send(a["address"], *a.get("args", []))

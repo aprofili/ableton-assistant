@@ -141,6 +141,13 @@ def _match(seg):
         v = m.group(1)
         return [{"type": "set_count_in", "bars": 0 if v in ("none", "off") else int(v)}]
 
+    mon_on = re.search(r"\b(?:with )?(?:record )?monitor\w*(?: is)? (?:on|auto)\b", seg)
+    segm = re.sub(r"\s*\b(?:with )?(?:record )?monitor\w*(?: is)? (?:on|auto|off)\b", "", seg).strip()
+    if re.fullmatch(r"(?:(?:create|make|add|give me|set up|insert)\s+)?(?:a |an |the )?(?:new )?vocals? (?:track|channel)(?: please)?", segm):
+        return [{"type": "new_vocal_track", "monitor": bool(mon_on)}]
+    if re.fullmatch(r"(?:(?:create|make|add|give me|set up|insert)\s+)?(?:a |an |the )?(?:new )?drum (?:mic|mics|microphone|microphones|room mic|room mics|overhead|overheads)(?: track| tracks| channel)?(?: please)?", segm):
+        return [{"type": "new_drum_mic_track", "monitor": bool(mon_on)}]
+
     if re.fullmatch(r"(?:(?:create|make|add|give me|set up|insert)\s+)?(?:a |an |the )?(?:new )?drum (?:mic|mics|microphone|microphones|room mic|room mics|overhead|overheads)(?: track| tracks| channel)?(?: please)?", seg):
         return [{"type": "new_drum_mic_track"}]
 

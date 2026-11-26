@@ -635,4 +635,13 @@ class DrumMicRouteTests(unittest.TestCase):
     def test_variants(self):
         from assistant import router
         for t in ["new drum mic track", "make a drum mic track", "drum mics", "give me a new drum mic track"]:
-            self.assertEqual(router.route(t)[0], [{"type": "new_drum_mic_track"}], t)
+            self.assertEqual(router.route(t)[0], [{"type": "new_drum_mic_track", "monitor": False}], t)
+
+
+class VocalRouteTests(unittest.TestCase):
+    def test_variants(self):
+        from assistant import router
+        self.assertEqual(router.route("new vocal track")[0], [{"type": "new_vocal_track", "monitor": False}])
+        self.assertEqual(router.route("give me a vocal track with record monitoring on")[0], [{"type": "new_vocal_track", "monitor": True}])
+        self.assertEqual(router.route("new drum mic track with monitoring on")[0], [{"type": "new_drum_mic_track", "monitor": True}])
+        self.assertEqual(router.route("new drum mic track")[0], [{"type": "new_drum_mic_track", "monitor": False}])
