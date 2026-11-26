@@ -433,6 +433,104 @@ class Actions:
             top = max(peaks, key=peaks.get)
             self.report(f"No clipping (loudest: {top})", True)
 
+    # ---- double track: L/R pair in a group, built from the current track ----
+    def _click_lane(self):
+        """Click an empty-ish spot in the arrangement so keyboard focus is in the arrangement lanes."""
+        import sys
+        if sys.platform != "win32":
+            return
+        import ctypes
+        from .keys import find_ableton_hwnd, focus_ableton
+        focus_ableton()
+        hwnd = find_ableton_hwnd()
+        if not hwnd:
+            return
+        class RECT(ctypes.Structure):
+            _fields_ = [("l", ctypes.c_long), ("t", ctypes.c_long), ("r", ctypes.c_long), ("b", ctypes.c_long)]
+        r = RECT()
+        u = ctypes.windll.user32
+        u.GetWindowRect(hwnd, ctypes.byref(r))
+        u.SetCursorPos(int(r.l + (r.r - r.l) * 0.70), int(r.t + (r.b - r.t) * 0.30))
+        u.mouse_event(0x0002, 0, 0, 0, 0)
+        u.mouse_event(0x0004, 0, 0, 0, 0)
+        time.sleep(0.2)
+
+    def _num_tracks(self):
+        return int(self.osc.query("/live/song/get/num_tracks")[0])
+
+    def _select_track(self, i):
+        self.osc.send("/live/view/set/selected_track", int(i))
+        time.sleep(0.2)
+
+    def _sel_track(self):
+        return int(self.osc.query("/live/view/get/selected_track", timeout=0.5)[-1])
+
+    def _clear_track_clips(self, ti):
+        """Delete every clip on track ti (session slots via OSC, arrangement via Select All + narrow + Delete)."""
+        try:
+            for sc in range(int(self.osc.query("/live/song/get/num_scenes")[0])):
+                try:
+                    self.osc.send("/live/clip_slot/delete_clip", ti, sc)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        self._select_track(ti)
+        self._click_lane()
+        self._select_track(ti)
+        self.keys.press("ctrl+a")      # time range covering all clips, on all tracks
+        time.sleep(0.2)
+        self.keys.press("down")        # collapses the selection to a single track
+        time.sleep(0.2)
+        for _ in range(60):            # walk the single-track selection onto track ti
+            cur = self._sel_track()
+            if cur == ti:
+                break
+            self.keys.press("up" if cur > ti else "down")
+            time.sleep(0.12)
+        else:
+            raise RuntimeError("Could not isolate the new track to clear its clips")
+        self.keys.press("delete")
+        time.sleep(0.2)
+
+    def a_double_track(self, a):
+        """Current track -> group named like it, holding L (hard left, original) and R (hard right,
+        a copy with the same devices but no clips)."""
+        if self.keys is None:
+            raise RuntimeError("Key sending is not available")
+        ti = self._sel_track()
+        name = str(self.osc.query("/live/track/get/name", ti, timeout=0.5)[-1])
+        n0 = self._num_tracks()
+        # 1. group the original on its own: the group lands at ti, the track moves to ti+1
+        self._click_lane()
+        self._select_track(ti)
+        self.keys.press("ctrl+g")
+        time.sleep(0.5)
+        if self._num_tracks() == n0:  # shortcut ignored: use the Edit menu
+            self.keys.press("alt+e")
+            time.sleep(0.3)
+            self.keys.press("g")
+            time.sleep(0.5)
+        if self._num_tracks() != n0 + 1:
+            raise RuntimeError("Could not group the track")
+        # 2. duplicate the track inside the group -> copy at ti+2
+        self._select_track(ti + 1)
+        self.keys.press("ctrl+d")
+        time.sleep(0.6)
+        if self._num_tracks() != n0 + 2:
+            raise RuntimeError("Could not duplicate the track")
+        # 3. empty the copy, keep its devices
+        self._clear_track_clips(ti + 2)
+        # 4. names and pans
+        self.osc.send("/live/track/set/name", ti, name)
+        self.osc.send("/live/track/set/name", ti + 1, "L")
+        self.osc.send("/live/track/set/name", ti + 2, "R")
+        self.osc.send("/live/track/set/panning", ti + 1, -1.0)
+        self.osc.send("/live/track/set/panning", ti + 2, 1.0)
+        self.osc.send("/live/track/set/arm", ti + 2, 0)
+        self._select_track(ti + 1)
+        self.note = f"Doubled {name}: L / R"
+
     def a_new_input_track(self, a):
         """Create an armed audio track, optionally named, with its input set to an external channel."""
         self.osc.send("/live/song/create_audio_track", -1)
