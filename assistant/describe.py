@@ -36,6 +36,8 @@ def describe_action(a):
     if t == "set_count_in":
         n = a["bars"]
         return "Count-in off" if n == 0 else f"Count-in {n} bar{'s' if n != 1 else ''}"
+    if t == "new_drum_mic_track":
+        return "New Drums group (L in 3 / R in 5)"
     if t == "double_track":
         return "Double track (group, L/R)"
     if t == "time_signature":

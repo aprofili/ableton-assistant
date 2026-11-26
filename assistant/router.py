@@ -141,6 +141,9 @@ def _match(seg):
         v = m.group(1)
         return [{"type": "set_count_in", "bars": 0 if v in ("none", "off") else int(v)}]
 
+    if re.fullmatch(r"(?:(?:create|make|add|give me|set up|insert)\s+)?(?:a |an |the )?(?:new )?drum (?:mic|mics|microphone|microphones|room mic|room mics|overhead|overheads)(?: track| tracks| channel)?(?: please)?", seg):
+        return [{"type": "new_drum_mic_track"}]
+
     if re.fullmatch(r"(?:(?:please )?(?:i )?(?:want to |want you to |wanna )?(?:to )?)?(?:double|doubl(?:e|ing) (?:this|it|the track|this track)|double (?:this|it|the track|this track)|double track)(?: (?:this|it|the track|this track|please))?", seg) or \
        re.fullmatch(r"(?:double|stereo double|doubletrack|double track)(?: (?:this|it|the|this|current))?(?: track)?(?: please)?", seg):
         return [{"type": "double_track"}]

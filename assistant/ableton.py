@@ -563,6 +563,10 @@ class Actions:
         ch = a.get("channel")
         if ch is None:
             return
+        self._set_input_channel(idx, ch)
+
+    def _set_input_channel(self, idx, ch):
+        rc = self.cfg.get("rode") or {}
         chans = [str(c) for c in self.osc.query("/live/track/get/available_input_routing_channels", idx)[1:]]
         mapped = (rc.get("channels") or {}).get(str(ch))
         pick = mapped if mapped in chans else None
@@ -574,6 +578,66 @@ class Actions:
             raise ValueError(f"Input channel {ch} not found. Live offers: {chans}. "
                              "Map it in config.json: rode.channels {\"%s\": \"<name>\"}" % ch)
         self.osc.send("/live/track/set/input_routing_channel", idx, pick)
+
+    def _load_device(self, query):
+        """Load the first browser result for `query` onto the selected track (appended to its chain)."""
+        self.keys.press("ctrl+f")
+        time.sleep(0.3)
+        self.keys.type_text(query)
+        time.sleep(0.7)
+        self.keys.press("down")
+        time.sleep(0.15)
+        self.keys.press("enter")
+        time.sleep(0.8)
+
+    def a_new_drum_mic_track(self, a):
+        """Group "Drums" (fader 0.75) with L (Ext. In 3, hard left) and R (Ext. In 5, hard right); each has
+        Compressor, EQ Eight, Utility; only R is armed."""
+        if self.keys is None:
+            raise RuntimeError("Key sending is not available")
+        self.a_new_input_track({"name": "L", "channel": 3})
+        ti = self._sel_track()
+        # device chain: Compressor first, then the standard new-track devices
+        for d in range(int(self.osc.query("/live/track/get/num_devices", ti)[-1]) - 1, -1, -1):
+            self.osc.send("/live/track/delete_device", ti, d)
+            time.sleep(0.1)
+        for dev in ("Compressor", "EQ Eight", "Utility"):
+            self._load_device(dev)
+        self.osc.send("/live/track/set/panning", ti, -1.0)
+        n0 = self._num_tracks()
+        # group L alone (group lands at ti, L moves to ti+1), then duplicate L inside it -> R at ti+2
+        self._click_lane()
+        self._select_track(ti)
+        self.keys.press("ctrl+g")
+        time.sleep(0.5)
+        if self._num_tracks() == n0:
+            self.keys.press("alt+e")
+            time.sleep(0.3)
+            self.keys.press("g")
+            time.sleep(0.5)
+        if self._num_tracks() != n0 + 1:
+            raise RuntimeError("Could not group the track")
+        self._select_track(ti + 1)
+        self.keys.press("ctrl+d")
+        time.sleep(0.6)
+        if self._num_tracks() != n0 + 2:
+            raise RuntimeError("Could not duplicate the track")
+        self._set_input_channel(ti + 2, 5)
+        self.osc.send("/live/track/set/name", ti, "Drums")
+        self.osc.send("/live/track/set/name", ti + 1, "L")
+        self.osc.send("/live/track/set/name", ti + 2, "R")
+        self.osc.send("/live/track/set/panning", ti + 1, -1.0)
+        self.osc.send("/live/track/set/panning", ti + 2, 1.0)
+        self.osc.send("/live/track/set/volume", ti, 0.75)
+        for i in range(self._num_tracks()):  # arm only the new track (R)
+            try:
+                if i in (ti, ti + 1, ti + 2) or int(self.osc.query("/live/track/get/arm", i, timeout=0.5)[-1]):
+                    self.osc.send("/live/track/set/arm", i, 1 if i == ti + 2 else 0)
+            except Exception:
+                pass
+        self.osc.send("/live/track/set/current_monitoring_state", ti + 2, 1)
+        self._select_track(ti + 2)
+        self.note = "Drums: L (in 3) / R (in 5)"
 
     def a_new_guitar_track(self, a):
         """New armed audio track named "Guitar" with the Favorites preset "Guitar Rig" loaded on it."""

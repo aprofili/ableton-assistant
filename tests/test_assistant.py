@@ -629,3 +629,10 @@ class DoubleTrackRouteTests(unittest.TestCase):
         from assistant import router
         for t in ["double this", "double this track", "i want to double this", "double track"]:
             self.assertEqual(router.route(t)[0], [{"type": "double_track"}], t)
+
+
+class DrumMicRouteTests(unittest.TestCase):
+    def test_variants(self):
+        from assistant import router
+        for t in ["new drum mic track", "make a drum mic track", "drum mics", "give me a new drum mic track"]:
+            self.assertEqual(router.route(t)[0], [{"type": "new_drum_mic_track"}], t)

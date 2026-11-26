@@ -14,7 +14,7 @@ unless the user clearly says to include the last bar.
 Action types:
   set_loop{start_bar,end_bar}  set loop region and turn loop on
   loop{on}  metronome{on: true|false|"toggle"}  play  continue  stop  undo  redo
-  goto_bar{bar}  goto_cue{name}  next_cue  prev_cue  set_count_in{bars: 0|1|2|4}  set_tempo{bpm}  time_signature{num,den}  double_track{}  (group + L/R pan copy of the selected track)
+  goto_bar{bar}  goto_cue{name}  next_cue  prev_cue  set_count_in{bars: 0|1|2|4}  set_tempo{bpm}  time_signature{num,den}  new_drum_mic_track{}  (Drums group, L=input 3, R=input 5)  double_track{}  (group + L/R pan copy of the selected track)
   add_section{bar,name}  create a locator at a bar and name it (renames it if one already exists there)
   name_section{name}  name the section the playhead is currently in (creates a locator there if none precedes it)
   track_volume{track, db}  change a track's fader by db (+/-); track = name from state or "selected"
@@ -58,7 +58,7 @@ TOOL = {
                     "properties": {
                         "type": {"type": "string", "enum": [
                             "set_loop", "loop", "metronome", "play", "continue", "stop", "undo", "redo",
-                            "goto_bar", "goto_cue", "arm_track", "next_cue", "prev_cue", "set_count_in", "set_tempo", "time_signature", "double_track",
+                            "goto_bar", "goto_cue", "arm_track", "next_cue", "prev_cue", "set_count_in", "set_tempo", "time_signature", "double_track", "new_drum_mic_track",
                             "add_section", "name_section", "track_volume", "check_levels", "new_input_track", "new_guitar_track",
                             "key", "osc", "wait"]},
                         "start_bar": {"type": "number"}, "end_bar": {"type": "number"},
