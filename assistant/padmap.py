@@ -119,6 +119,29 @@ class PadMap:
         self._save_open(False)
         self.root.withdraw()
 
+    def raise_(self):
+        """Bring the map above other windows (restoring it if minimized) without taking focus."""
+        if self.started and self.is_open():
+            self.q.put("raise")
+
+    def is_open(self):
+        try:
+            with open(self.STATE, encoding="utf-8") as f:
+                return bool(json.load(f).get("padmap_open"))
+        except Exception:
+            return False
+
+    def _raise_native(self):
+        import sys
+        if sys.platform != "win32":
+            return
+        import ctypes
+        u = ctypes.windll.user32
+        hwnd = u.GetAncestor(self.root.winfo_id(), 2)  # GA_ROOT
+        if u.IsIconic(hwnd):
+            u.ShowWindow(hwnd, 4)  # SW_SHOWNOACTIVATE
+        u.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0013)  # HWND_TOP, NOMOVE|NOSIZE|NOACTIVATE
+
     def show(self):
         self._save_open(True)
         if not self.started:
@@ -193,7 +216,11 @@ class PadMap:
     def _tick(self):
         try:
             while True:
-                self.q.get_nowait()
+                item = self.q.get_nowait()
+                if item == "raise":
+                    if self.root.state() != "withdrawn":
+                        self._raise_native()
+                    continue
                 first = not getattr(self, "placed", False)
                 self.root.deiconify()
                 if first:

@@ -544,10 +544,15 @@ class PadController:
             a = self.assistant.actions
             try:
                 from .keys import ableton_in_front, focus_ableton
+                pm = getattr(self.assistant, "padmap", None)
                 if not ableton_in_front():
                     focus_ableton()
+                    if pm:
+                        pm.raise_()
                     if self.focus_mode == "focus_only":
                         continue
+                elif pm:
+                    pm.raise_()
                 if a is None or not acts:
                     continue
                 self._optimistic(acts)
